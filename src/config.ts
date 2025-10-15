@@ -1,10 +1,32 @@
-import { readFile } from "node:fs/promises";
+import { access, copyFile, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 import type { Config, EventType } from "./types.js";
 
 const DEFAULT_EVENTS: EventType[] = ["join", "leave", "death", "chat"];
 const DEFAULT_INTERVAL_MS = 1000;
+const CONFIG_TEMPLATE_PATH = fileURLToPath(
+	new URL("../config.example.json", import.meta.url),
+);
+
+const isNotFoundError = (error: unknown): boolean =>
+	typeof error === "object" &&
+	error !== null &&
+	"code" in error &&
+	(error as { code?: string }).code === "ENOENT";
+
+export class ConfigTemplateCreatedError extends Error {
+	readonly configPath: string;
+
+	constructor(configPath: string) {
+		super(
+			`Configuration file not found. A template has been created at ${configPath}. Update it and rerun the cli.`,
+		);
+		this.name = "ConfigTemplateCreatedError";
+		this.configPath = configPath;
+	}
+}
 
 function applyDefaults(partial: Partial<Config>): Config {
 	const events =
@@ -25,6 +47,20 @@ function applyDefaults(partial: Partial<Config>): Config {
 				? Math.floor(partial.updateIntervalMs)
 				: DEFAULT_INTERVAL_MS,
 	};
+}
+
+async function ensureConfigFile(resolvedPath: string): Promise<void> {
+	try {
+		await access(resolvedPath);
+	} catch (error) {
+		if (isNotFoundError(error)) {
+			await mkdir(path.dirname(resolvedPath), { recursive: true });
+			await copyFile(CONFIG_TEMPLATE_PATH, resolvedPath);
+			throw new ConfigTemplateCreatedError(resolvedPath);
+		}
+
+		throw error;
+	}
 }
 
 export function validateConfig(config: Config): void {
@@ -74,6 +110,7 @@ export function validateConfig(config: Config): void {
 
 export async function loadConfig(configPath: string): Promise<Config> {
 	const resolvedPath = path.resolve(process.cwd(), configPath);
+	await ensureConfigFile(resolvedPath);
 	const raw = await readFile(resolvedPath, "utf8");
 	const parsed = JSON.parse(raw) as Partial<Config>;
 	const config = applyDefaults(parsed);

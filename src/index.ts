@@ -1,6 +1,7 @@
+#!/usr/bin/env node
 import process from "node:process";
 import readline from "node:readline";
-import { loadConfig } from "./config.js";
+import { ConfigTemplateCreatedError, loadConfig } from "./config.js";
 import {
 	cleanup,
 	initializeDiscordClient,
@@ -157,8 +158,14 @@ async function main(): Promise<void> {
 		console.log(`Monitoring log file: ${config.cubyzLogPath}`);
 		await pollLoop(config);
 	} catch (error) {
-		console.error("Fatal error:", error);
-		process.exitCode = 1;
+		if (error instanceof ConfigTemplateCreatedError) {
+			console.warn(error.message);
+			console.warn("Update the generated config file and run the command again.");
+			process.exitCode = 1;
+		} else {
+			console.error("Fatal error:", error);
+			process.exitCode = 1;
+		}
 	} finally {
 		await shutdown();
 	}

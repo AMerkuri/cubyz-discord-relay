@@ -14,11 +14,28 @@ CLI tool that streams Cubyz game server chat events into a Discord channel in ne
 - Discord bot token with permission to post in the target channel
 
 ## Installation
+Install via npm:
+
+```bash
+npm install -g cubyz-discord-relay
+
+# Start the relay (defaults to ./config.json)
+cubyz-discord-relay
+
+# Provide a custom config path
+cubyz-discord-relay /path/to/config.json
+```
+
+You can also run once without a global install via `npx cubyz-discord-relay`.
+
+## Development
+
+### Setup
 ```bash
 npm install
 ```
 
-## Configuration
+### Configuration
 1. Copy `config.example.json` to `config.json`.
 2. Update the fields:
    - `cubyzLogPath`: absolute path to Cubyz `latest.log`
@@ -27,19 +44,16 @@ npm install
    - `events`: event types to relay (`join`, `leave`, `death`, `chat`)
    - `updateIntervalMs`: polling interval in milliseconds
 
-## Usage
+> First run convenience: if `config.json` is missing, the CLI writes a fresh template in your working directory and exits so you can fill it in before retrying.
+
+### Usage
 ```bash
-npm run dev            # Run directly with tsx
+npm run dev            # Run directly with tsx (recompiles on change)
 npm run build          # Compile TypeScript to dist/
 npm start              # Run compiled output (after build)
 ```
 
 During execution press `q` + Enter to exit gracefully.
-
-## Development
-- Source code lives in `src/`
-- `npm run watch` recompiles on change
-- Type definitions are emitted to `dist/`
 
 ## Troubleshooting
 - **Bot not posting**: verify bot token, channel ID, and permissions

@@ -5,6 +5,9 @@
 	"type": "module",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
+	"bin": {
+		"cubyz-discord-relay": "dist/index.js"
+	},
 	"scripts": {
 		"check": "biome check .",
 		"check:write": "biome check --write .",
@@ -12,7 +15,8 @@
 		"start": "node dist/index.js",
 		"dev": "tsx src/index.ts",
 		"watch": "tsc --watch",
-		"test": "tsx test/messageFormatter.test.ts"
+		"test": "tsx test/messageFormatter.test.ts",
+		"prepublishOnly": "npm run build"
 	},
 	"keywords": [
 		"cubyz",
@@ -22,6 +26,11 @@
 	],
 	"author": "",
 	"license": "MIT",
+	"files": [
+		"dist",
+		"config.example.json",
+		"README.md"
+	],
 	"dependencies": {
 		"discord.js": "^14.14.1"
 	},
