@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import process from "node:process";
+import type { Key } from "node:readline";
 import readline from "node:readline";
 import { ConfigTemplateCreatedError, loadConfig } from "./config.js";
 import {
@@ -19,7 +20,8 @@ const DEFAULT_CONFIG_PATH = "config.json";
 
 let isRunning = true;
 let isShuttingDown = false;
-let readlineInterface: readline.Interface | null = null;
+let keypressHandler: ((str: string, key: Key) => void) | null = null;
+let rawModeEnabled = false;
 
 const delay = (ms: number): Promise<void> =>
 	new Promise((resolve) => {
@@ -111,10 +113,21 @@ async function shutdown(): Promise<void> {
 	isShuttingDown = true;
 	isRunning = false;
 
-	if (readlineInterface) {
-		readlineInterface.close();
-		readlineInterface = null;
+	if (keypressHandler) {
+		process.stdin.off("keypress", keypressHandler);
+		keypressHandler = null;
 	}
+
+	if (
+		rawModeEnabled &&
+		process.stdin.isTTY &&
+		typeof process.stdin.setRawMode === "function"
+	) {
+		process.stdin.setRawMode(false);
+		rawModeEnabled = false;
+	}
+
+	process.stdin.pause();
 
 	try {
 		await cleanup();
@@ -124,24 +137,34 @@ async function shutdown(): Promise<void> {
 }
 
 function setupQuitHandler(): void {
-	readlineInterface = readline.createInterface({
-		input: process.stdin,
-		output: process.stdout,
-		terminal: false,
-	});
+	readline.emitKeypressEvents(process.stdin);
 
-	readlineInterface.on("line", (input: string) => {
-		if (input.trim().toLowerCase() === "q") {
+	if (process.stdin.isTTY && typeof process.stdin.setRawMode === "function") {
+		process.stdin.setRawMode(true);
+		rawModeEnabled = true;
+	}
+
+	process.stdin.resume();
+
+	keypressHandler = (_input: string, key: Key) => {
+		if (key.sequence === "\u0003" || (key.name === "c" && key.ctrl)) {
+			process.emit("SIGINT");
+			return;
+		}
+
+		if (key.name === "q" && !key.ctrl && !key.meta) {
 			void shutdown();
 		}
-	});
+	};
+
+	process.stdin.on("keypress", keypressHandler);
 
 	process.on("SIGINT", () => {
 		console.log("\nReceived SIGINT. Shutting down...");
 		void shutdown();
 	});
 
-	console.log("Press q + Enter to quit.");
+	console.log("Press q to quit.");
 }
 
 async function main(): Promise<void> {
@@ -160,7 +183,9 @@ async function main(): Promise<void> {
 	} catch (error) {
 		if (error instanceof ConfigTemplateCreatedError) {
 			console.warn(error.message);
-			console.warn("Update the generated config file and run the command again.");
+			console.warn(
+				"Update the generated config file and run the command again.",
+			);
 			process.exitCode = 1;
 		} else {
 			console.error("Fatal error:", error);
