@@ -1,0 +1,9 @@
+{
+	"cubyzLogPath": "/path/to/cubyz/logs/latest.log",
+	"discord": {
+		"token": "YOUR_DISCORD_BOT_TOKEN",
+		"channelId": "YOUR_CHANNEL_ID"
+	},
+	"events": ["join", "leave", "death", "chat"],
+	"updateIntervalMs": 1000
+}
