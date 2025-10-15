@@ -1,8 +1,8 @@
 # Cubyz Discord Relay
 
-CLI tool that streams [Cubyz](https://github.com/PixelGuys/Cubyz) game server chat events into a Discord channel in near real time
+CLI tool that streams [Cubyz](https://github.com/PixelGuys/Cubyz) game server chat events into a Discord channel in near real time.
 
-![Cubyz Discord Relay](assets/discord.png)
+![Cubyz Discord Relay](https://raw.githubusercontent.com/AMerkuri/cubyz-discord-relay/refs/heads/master/assets/discord.png)
 
 ## Features
 - Watches the Cubyz `latest.log` file
