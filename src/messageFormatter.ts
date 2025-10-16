@@ -1,28 +1,14 @@
 import type { ChatMessage, Config, EventType } from "./types.js";
 
-const FORMATTED_USERNAME_PATTERN =
-	/(?:\*+|_+|~+)(?:#[0-9A-Fa-f]{6}.)+(?:\*+|_+|~+)(?:§#[0-9A-Fa-f]{6})?/;
-
-export function isFormattedUsername(username: string): boolean {
-	return FORMATTED_USERNAME_PATTERN.test(username);
-}
-
 export function cleanUsername(raw: string): string {
-	const withoutSuffix = raw.replace(/§#[0-9A-Fa-f]{6}$/g, "");
+	let result = raw;
 
-	const colorCharMatches = [
-		...withoutSuffix.matchAll(/#[0-9A-Fa-f]{6}([A-Za-z0-9_])/g),
-	];
-	if (colorCharMatches.length > 0) {
-		return colorCharMatches.map((match) => match[1]).join("");
-	}
+	result = result.replace(/§#[0-9A-Fa-f]{6}/g, "");
+	result = result.replace(/#[0-9A-Fa-f]{6}/g, "");
+	result = result.replace(/[*~_[\]]/g, "");
+	result = result.replace(/[^\p{L}\p{N}_\- ]/gu, "");
 
-	const stripped = withoutSuffix
-		.replace(/[*~_[\]]/g, "")
-		.replace(/#[0-9A-Fa-f]{6}/g, "")
-		.trim();
-
-	return stripped;
+	return result.trim();
 }
 
 export function formatMessage(chatMessage: ChatMessage): string {
@@ -33,7 +19,7 @@ export function formatMessage(chatMessage: ChatMessage): string {
 		case "join":
 			return `👋 ${username} joined the game`;
 		case "leave":
-			return `👋 ${username} left the game`;
+			return `🚪 ${username} left the game`;
 		case "death":
 			return `💀 ${username} ${chatMessage.message ?? "died"}`;
 		case "chat":

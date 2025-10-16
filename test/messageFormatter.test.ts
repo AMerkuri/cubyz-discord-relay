@@ -1,21 +1,25 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import {
-	cleanUsername,
-	formatMessage,
-	isFormattedUsername,
-} from "../src/messageFormatter.js";
+import { cleanUsername, formatMessage } from "../src/messageFormatter.js";
 import type { ChatMessage } from "../src/types.js";
-
-test("detects formatted usernames", () => {
-	const formatted = "***#6A5ACDM#8A2BE2e***§#ffff00";
-	assert.equal(isFormattedUsername(formatted), true);
-});
 
 test("cleanUsername strips Cubyz formatting", () => {
 	const raw = "***#6A5ACDM#8A2BE2e#9932CCr#C71585c***§#ffff00";
 	const cleaned = cleanUsername(raw);
 	assert.equal(cleaned, "Merc");
+});
+
+test("cleanUsername handles color-prefixed username", () => {
+	const raw = "#1e90fftaylor§#cccccc§#ffff00";
+	const cleaned = cleanUsername(raw);
+	assert.equal(cleaned, "taylor");
+});
+
+test("cleanUsername preserves unicode characters", () => {
+	const raw =
+		"#ff4500с#32cd32в#4169e1е#ffd700т#8a2be2о#00ced1ф#ff69b4ия§#dddddd§#ffff00";
+	const cleaned = cleanUsername(raw);
+	assert.equal(cleaned, "светофия");
 });
 
 test("cleanUsername preserves plain usernames", () => {
