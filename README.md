@@ -9,7 +9,6 @@ CLI tool that streams [Cubyz](https://github.com/PixelGuys/Cubyz) game server ch
 - Supports join, leave, death, and chat events
 - Cleans Cubyz markdown-style usernames before relaying
 - Filters events based on configuration
-- Graceful shutdown via `q` or `Ctrl+C`
 
 ## Prerequisites
 - Node.js 18 or newer
@@ -55,7 +54,7 @@ npm run build          # Compile TypeScript to dist/
 npm start              # Run compiled output (after build)
 ```
 
-During execution press `q` to exit gracefully.
+During execution press `q` or `Ctrl+C` to exit gracefully.
 
 ## Troubleshooting
 - **Bot not posting**: verify bot token, channel ID, and permissions
