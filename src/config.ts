@@ -6,6 +6,7 @@ import type { Config, EventType } from "./types.js";
 
 const DEFAULT_EVENTS: EventType[] = ["join", "leave", "death", "chat"];
 const DEFAULT_INTERVAL_MS = 1000;
+const DEFAULT_UPDATE_PRESENCE = true;
 const CONFIG_TEMPLATE_PATH = fileURLToPath(
 	new URL("../config.example.json", import.meta.url),
 );
@@ -46,6 +47,10 @@ function applyDefaults(partial: Partial<Config>): Config {
 			partial.updateIntervalMs > 0
 				? Math.floor(partial.updateIntervalMs)
 				: DEFAULT_INTERVAL_MS,
+		updatePresence:
+			typeof partial.updatePresence === "boolean"
+				? partial.updatePresence
+				: DEFAULT_UPDATE_PRESENCE,
 	};
 }
 
@@ -106,6 +111,12 @@ export function validateConfig(config: Config): void {
 			'Configuration error: "updateIntervalMs" must be a positive number.',
 		);
 	}
+
+	if (typeof config.updatePresence !== "boolean") {
+		throw new Error(
+			'Configuration error: "updatePresence" must be a boolean value.',
+		);
+	}
 }
 
 export async function loadConfig(configPath: string): Promise<Config> {
@@ -118,4 +129,4 @@ export async function loadConfig(configPath: string): Promise<Config> {
 	return config;
 }
 
-export { DEFAULT_EVENTS, DEFAULT_INTERVAL_MS };
+export { DEFAULT_EVENTS, DEFAULT_INTERVAL_MS, DEFAULT_UPDATE_PRESENCE };

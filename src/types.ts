@@ -8,6 +8,7 @@ export interface Config {
 	};
 	events: EventType[];
 	updateIntervalMs: number;
+	updatePresence: boolean;
 }
 
 export interface ChatMessage {

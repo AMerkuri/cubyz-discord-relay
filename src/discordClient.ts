@@ -1,4 +1,9 @@
-import { Client, GatewayIntentBits, type TextBasedChannel } from "discord.js";
+import {
+	ActivityType,
+	Client,
+	GatewayIntentBits,
+	type TextBasedChannel,
+} from "discord.js";
 
 type SendableChannel = TextBasedChannel & {
 	send: (content: string) => Promise<unknown>;
@@ -88,4 +93,24 @@ export async function cleanup(): Promise<void> {
 	channelCache.clear();
 	await clientInstance.destroy();
 	clientInstance = null;
+}
+
+export async function updatePresence(playerCount: number): Promise<void> {
+	const client = ensureClient();
+	const user = client.user;
+
+	if (!user) {
+		console.warn("Discord client is not ready to update presence yet.");
+		return;
+	}
+
+	user.setPresence({
+		activities: [
+			{
+				name: `Players Online: ${playerCount}`,
+				type: ActivityType.Custom,
+			},
+		],
+		status: "online",
+	});
 }

@@ -7,13 +7,17 @@ import {
 	cleanup,
 	initializeDiscordClient,
 	sendMessage,
+	updatePresence,
 } from "./discordClient.js";
 import {
 	initializePosition,
 	parseChatLine,
 	readNewLines,
+	scanFullLog,
 } from "./logParser.js";
 import { formatMessage, shouldRelayEvent } from "./messageFormatter.js";
+import type { PlayerTracker } from "./playerTracker.js";
+import { createPlayerTracker } from "./playerTracker.js";
 import type { ChatMessage, Config } from "./types.js";
 
 const DEFAULT_CONFIG_PATH = "config.json";
@@ -51,7 +55,7 @@ async function relayMessages(
 	}
 }
 
-async function pollLoop(config: Config): Promise<void> {
+async function pollLoop(config: Config, tracker: PlayerTracker): Promise<void> {
 	let lastPosition = await initializePosition(config.cubyzLogPath);
 	let warnedMissingFile = false;
 
@@ -86,10 +90,36 @@ async function pollLoop(config: Config): Promise<void> {
 
 			if (lines.length > 0) {
 				const messages: ChatMessage[] = [];
+				let presenceNeedsUpdate = false;
+
 				for (const line of lines) {
 					const chatMessage = parseChatLine(line);
-					if (chatMessage) {
-						messages.push(chatMessage);
+					if (!chatMessage) {
+						continue;
+					}
+
+					messages.push(chatMessage);
+
+					if (chatMessage.type === "join") {
+						const previousCount = tracker.count;
+						const newCount = tracker.increment(chatMessage.username);
+						if (newCount !== previousCount) {
+							presenceNeedsUpdate = true;
+						}
+					} else if (chatMessage.type === "leave") {
+						const previousCount = tracker.count;
+						const newCount = tracker.decrement(chatMessage.username);
+						if (newCount !== previousCount) {
+							presenceNeedsUpdate = true;
+						}
+					}
+				}
+
+				if (presenceNeedsUpdate && config.updatePresence) {
+					try {
+						await updatePresence(tracker.count);
+					} catch (error) {
+						console.error("Failed to update Discord presence:", error);
 					}
 				}
 
@@ -176,10 +206,32 @@ async function main(): Promise<void> {
 		await initializeDiscordClient(config.discord.token);
 		console.log("Connected to Discord.");
 
+		console.info("Performing initial log scan to determine player count...");
+		const tracker = createPlayerTracker();
+		tracker.reset();
+
+		const initialEvents = await scanFullLog(config.cubyzLogPath);
+		for (const event of initialEvents) {
+			if (event.type === "join") {
+				tracker.increment(event.username);
+			} else if (event.type === "leave") {
+				tracker.decrement(event.username);
+			}
+		}
+
+		console.info(`Initial player count: ${tracker.count}`);
+		if (config.updatePresence) {
+			try {
+				await updatePresence(tracker.count);
+			} catch (error) {
+				console.error("Failed to set initial Discord presence:", error);
+			}
+		}
+
 		setupQuitHandler();
 
 		console.log(`Monitoring log file: ${config.cubyzLogPath}`);
-		await pollLoop(config);
+		await pollLoop(config, tracker);
 	} catch (error) {
 		if (error instanceof ConfigTemplateCreatedError) {
 			console.warn(error.message);

@@ -63,6 +63,44 @@ export async function readNewLines(
 	}
 }
 
+export async function scanFullLog(filePath: string): Promise<ChatMessage[]> {
+	try {
+		const fileHandle = await open(filePath, "r");
+		const fileStats = await fileHandle.stat();
+
+		if (fileStats.size === 0) {
+			await fileHandle.close();
+			return [];
+		}
+
+		const buffer = Buffer.alloc(fileStats.size);
+		await fileHandle.read(buffer, 0, fileStats.size, 0);
+		await fileHandle.close();
+
+		const content = buffer.toString("utf8");
+		const normalized = content.replace(/\r\n/g, "\n");
+		const lines = normalized
+			.split("\n")
+			.filter((line: string) => line.length > 0);
+
+		const messages: ChatMessage[] = [];
+		for (const line of lines) {
+			const chatMessage = parseChatLine(line);
+			if (chatMessage) {
+				messages.push(chatMessage);
+			}
+		}
+
+		return messages;
+	} catch (error) {
+		if (isNotFoundError(error)) {
+			return [];
+		}
+
+		throw error;
+	}
+}
+
 export function parseChatLine(rawLine: string): ChatMessage | null {
 	const match = CHAT_PATTERN.exec(rawLine);
 	if (!match) {
