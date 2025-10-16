@@ -28,6 +28,18 @@ test("cleanUsername preserves plain usernames", () => {
 	assert.equal(cleaned, "Player123");
 });
 
+test("cleanUsername removes Cubyz markdown characters", () => {
+	const raw = "user~_[]name";
+	const cleaned = cleanUsername(raw);
+	assert.equal(cleaned, "username");
+});
+
+test("cleanUsername removes disallowed punctuation", () => {
+	const raw = "Play!er@123";
+	const cleaned = cleanUsername(raw);
+	assert.equal(cleaned, "Player123");
+});
+
 const timestamp = new Date("2024-01-01T00:00:00Z");
 
 test("formats join messages", () => {
