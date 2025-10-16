@@ -17,15 +17,15 @@ export function formatMessage(chatMessage: ChatMessage): string {
 
 	switch (chatMessage.type) {
 		case "join":
-			return `👋 ${username} joined the game`;
+			return `👋 **${username} joined the game**`;
 		case "leave":
-			return `🚪 ${username} left the game`;
+			return `🚪 **${username} left the game**`;
 		case "death":
-			return `💀 ${username} ${chatMessage.message ?? "died"}`;
+			return `💀 **${username} ${chatMessage.message ?? "died"}**`;
 		case "chat":
-			return `${username}: ${chatMessage.message ?? ""}`;
+			return `**${username}**: ${chatMessage.message ?? ""}`;
 		default:
-			return `${username}: ${chatMessage.message ?? ""}`;
+			return `**${username}**: ${chatMessage.message ?? ""}`;
 	}
 }
 

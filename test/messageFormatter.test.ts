@@ -50,7 +50,18 @@ test("formats join messages", () => {
 		timestamp,
 	};
 
-	assert.equal(formatMessage(message), "👋 Hi joined the game");
+	assert.equal(formatMessage(message), "👋 **Hi joined the game**");
+});
+
+test("formats leave messages", () => {
+	const message: ChatMessage = {
+		type: "leave",
+		rawUsername: "Player123",
+		username: "Player123",
+		timestamp,
+	};
+
+	assert.equal(formatMessage(message), "🚪 **Player123 left the game**");
 });
 
 test("formats chat messages", () => {
@@ -62,7 +73,7 @@ test("formats chat messages", () => {
 		timestamp,
 	};
 
-	assert.equal(formatMessage(message), "Player123: hello world");
+	assert.equal(formatMessage(message), "**Player123**: hello world");
 });
 
 test("formats death messages", () => {
@@ -74,5 +85,5 @@ test("formats death messages", () => {
 		timestamp,
 	};
 
-	assert.equal(formatMessage(message), "💀 Bob died of fall damage");
+	assert.equal(formatMessage(message), "💀 **Bob died of fall damage**");
 });
