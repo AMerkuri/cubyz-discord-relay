@@ -13,8 +13,7 @@
 		"check:write": "biome check --write .",
 		"build": "tsc",
 		"start": "node dist/index.js",
-		"dev": "tsx src/index.ts",
-		"watch": "tsc --watch",
+		"dev": "tsx watch src/index.ts",
 		"test": "tsx test/messageFormatter.test.ts",
 		"prepublishOnly": "npm run build"
 	},
