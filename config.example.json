@@ -6,5 +6,10 @@
 	},
 	"events": ["join", "leave", "death", "chat"],
 	"updateIntervalMs": 1000,
-	"updatePresence": true
+	"updatePresence": true,
+	"monitoring": {
+		"enabled": false,
+		"port": 47649,
+		"intervalSeconds": 60
+	}
 }

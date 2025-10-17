@@ -18,6 +18,7 @@ import {
 import { formatMessage, shouldRelayEvent } from "./messageFormatter.js";
 import type { PlayerTracker } from "./playerTracker.js";
 import { createPlayerTracker } from "./playerTracker.js";
+import { isServerOnline } from "./serverMonitor.js";
 import type { ChatMessage, Config } from "./types.js";
 
 const DEFAULT_CONFIG_PATH = "config.json";
@@ -52,6 +53,47 @@ async function relayMessages(
 		} catch (error) {
 			console.error("Failed to send message to Discord:", error);
 		}
+	}
+}
+
+async function monitorServerStatus(config: Config): Promise<void> {
+	const intervalMs = config.monitoring.intervalSeconds * 1000;
+	let lastKnownOnline: boolean | null = null;
+
+	while (isRunning) {
+		let online = false;
+
+		try {
+			online = await isServerOnline(config.monitoring.port);
+		} catch (error) {
+			console.error("Failed to check server status:", error);
+		}
+
+		const statusChanged =
+			lastKnownOnline === null || online !== lastKnownOnline;
+
+		if (statusChanged) {
+			const statusText = online ? "ONLINE" : "OFFLINE";
+			const message = online
+				? "🟢 **Server is online**"
+				: "🔴 **Server is offline**";
+			console.log(
+				`Server monitor: Cubyz server is ${statusText.toLowerCase()}.`,
+			);
+
+			try {
+				await sendMessage(config.discord.channelId, message);
+				lastKnownOnline = online;
+			} catch (error) {
+				console.error("Failed to send server status to Discord:", error);
+			}
+		}
+
+		if (!isRunning) {
+			break;
+		}
+
+		await delay(intervalMs);
 	}
 }
 
@@ -231,7 +273,14 @@ async function main(): Promise<void> {
 		setupQuitHandler();
 
 		console.log(`Monitoring log file: ${config.cubyzLogPath}`);
-		await pollLoop(config, tracker);
+
+		const tasks: Promise<void>[] = [pollLoop(config, tracker)];
+
+		if (config.monitoring.enabled) {
+			tasks.push(monitorServerStatus(config));
+		}
+
+		await Promise.all(tasks);
 	} catch (error) {
 		if (error instanceof ConfigTemplateCreatedError) {
 			console.warn(error.message);

@@ -11,6 +11,7 @@ CLI tool that streams [Cubyz](https://github.com/PixelGuys/Cubyz) game server ch
 - Cleans Cubyz markdown-style usernames before relaying
 - Filters events based on configuration
 - Shows current player count in the bot's Discord presence
+- Optionally monitors the server UDP port and announces online/offline changes
 
 ## Prerequisites
 
@@ -60,6 +61,7 @@ npm install
    - `events`: event types to relay (`join`, `leave`, `death`, `chat`)
    - `updateIntervalMs`: polling interval in milliseconds
    - `updatePresence`: set to `false` to disable Discord presence updates
+   - `monitoring`: optional server monitor (set `enabled` to `true`, adjust `port` and `intervalSeconds`)
 
 > First run convenience: if `config.json` is missing, the CLI writes a fresh template in your working directory and exits so you can fill it in before retrying.
 

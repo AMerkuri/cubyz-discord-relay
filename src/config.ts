@@ -7,6 +7,9 @@ import type { Config, EventType } from "./types.js";
 const DEFAULT_EVENTS: EventType[] = ["join", "leave", "death", "chat"];
 const DEFAULT_INTERVAL_MS = 1000;
 const DEFAULT_UPDATE_PRESENCE = true;
+const DEFAULT_MONITORING_ENABLED = false;
+const DEFAULT_MONITORING_PORT = 47649;
+const DEFAULT_MONITORING_INTERVAL_SECONDS = 60;
 const CONFIG_TEMPLATE_PATH = fileURLToPath(
 	new URL("../config.example.json", import.meta.url),
 );
@@ -51,6 +54,24 @@ function applyDefaults(partial: Partial<Config>): Config {
 			typeof partial.updatePresence === "boolean"
 				? partial.updatePresence
 				: DEFAULT_UPDATE_PRESENCE,
+		monitoring: {
+			enabled:
+				typeof partial.monitoring?.enabled === "boolean"
+					? partial.monitoring.enabled
+					: DEFAULT_MONITORING_ENABLED,
+			port:
+				typeof partial.monitoring?.port === "number" &&
+				Number.isInteger(partial.monitoring.port) &&
+				partial.monitoring.port > 0 &&
+				partial.monitoring.port <= 65535
+					? partial.monitoring.port
+					: DEFAULT_MONITORING_PORT,
+			intervalSeconds:
+				typeof partial.monitoring?.intervalSeconds === "number" &&
+				partial.monitoring.intervalSeconds > 0
+					? Math.floor(partial.monitoring.intervalSeconds)
+					: DEFAULT_MONITORING_INTERVAL_SECONDS,
+		},
 	};
 }
 
@@ -115,6 +136,32 @@ export function validateConfig(config: Config): void {
 	if (typeof config.updatePresence !== "boolean") {
 		throw new Error(
 			'Configuration error: "updatePresence" must be a boolean value.',
+		);
+	}
+
+	if (typeof config.monitoring?.enabled !== "boolean") {
+		throw new Error(
+			'Configuration error: "monitoring.enabled" must be a boolean value.',
+		);
+	}
+
+	if (
+		typeof config.monitoring.port !== "number" ||
+		!Number.isInteger(config.monitoring.port) ||
+		config.monitoring.port <= 0 ||
+		config.monitoring.port > 65535
+	) {
+		throw new Error(
+			'Configuration error: "monitoring.port" must be an integer between 1 and 65535.',
+		);
+	}
+
+	if (
+		typeof config.monitoring.intervalSeconds !== "number" ||
+		config.monitoring.intervalSeconds <= 0
+	) {
+		throw new Error(
+			'Configuration error: "monitoring.intervalSeconds" must be a positive number.',
 		);
 	}
 }
