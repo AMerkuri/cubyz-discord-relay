@@ -1,4 +1,4 @@
-import type { ChatMessage, Config, EventType } from "./types.js";
+import type { ChatMessage, Config, EventType } from "./types";
 
 export function cleanUsername(raw: string): string {
 	let result = raw;
@@ -12,8 +12,7 @@ export function cleanUsername(raw: string): string {
 }
 
 export function formatMessage(chatMessage: ChatMessage): string {
-	const username =
-		chatMessage.username || cleanUsername(chatMessage.rawUsername);
+	const username = chatMessage.username;
 
 	switch (chatMessage.type) {
 		case "join":
@@ -24,6 +23,8 @@ export function formatMessage(chatMessage: ChatMessage): string {
 			return `💀 **${username} ${chatMessage.message ?? "died"}**`;
 		case "chat":
 			return `**${username}**: ${chatMessage.message ?? ""}`;
+		case "version-check":
+			return `⚠️ **${username} uses incompatible client version ${chatMessage.metadata?.clientVersion ?? "unknown"}**`;
 		default:
 			return `**${username}**: ${chatMessage.message ?? ""}`;
 	}

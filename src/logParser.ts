@@ -1,15 +1,20 @@
 import { Buffer } from "node:buffer";
 import { open, stat } from "node:fs/promises";
-import { cleanUsername } from "./messageFormatter.js";
-import type { ChatMessage } from "./types.js";
+import { cleanUsername } from "./messageFormatter";
+import type { ChatMessage } from "./types";
 
 const CHAT_PATTERN = /\[info\]:\s*(?:User \[info\]:\s*)?Chat:\s*(.+)/i;
+const VERSIONED_JOIN_PATTERN =
+	/\[info\]:\s*User\s+(.+?) joined using version (.+)$/i;
 
 const isNotFoundError = (error: unknown): boolean =>
 	typeof error === "object" &&
 	error !== null &&
 	"code" in error &&
 	(error as { code?: string }).code === "ENOENT";
+
+const normalizeClientVersion = (input: string): string =>
+	input.trim().replace(/\.$/, "");
 
 export async function initializePosition(filePath: string): Promise<number> {
 	try {
@@ -102,6 +107,19 @@ export async function scanFullLog(filePath: string): Promise<ChatMessage[]> {
 }
 
 export function parseChatLine(rawLine: string): ChatMessage | null {
+	const versionedJoinMatch = VERSIONED_JOIN_PATTERN.exec(rawLine);
+	if (versionedJoinMatch) {
+		const rawUsername = versionedJoinMatch[1].trim();
+		const clientVersion = normalizeClientVersion(versionedJoinMatch[2]);
+		return {
+			type: "join",
+			rawUsername,
+			username: cleanUsername(rawUsername),
+			timestamp: new Date(),
+			metadata: { clientVersion },
+		};
+	}
+
 	const match = CHAT_PATTERN.exec(rawLine);
 	if (!match) {
 		return null;
@@ -119,17 +137,6 @@ export function parseChatLine(rawLine: string): ChatMessage | null {
 			rawUsername,
 			username: cleanUsername(rawUsername),
 			message,
-			timestamp,
-		};
-	}
-
-	const joinMatch = /^(.+?) joined$/.exec(payload);
-	if (joinMatch) {
-		const rawUsername = joinMatch[1].trim();
-		return {
-			type: "join",
-			rawUsername,
-			username: cleanUsername(rawUsername),
 			timestamp,
 		};
 	}

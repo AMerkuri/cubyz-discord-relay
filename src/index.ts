@@ -2,24 +2,25 @@
 import process from "node:process";
 import type { Key } from "node:readline";
 import readline from "node:readline";
-import { ConfigTemplateCreatedError, loadConfig } from "./config.js";
+import { ConfigTemplateCreatedError, loadConfig } from "./config";
 import {
 	cleanup,
 	initializeDiscordClient,
 	sendMessage,
 	updatePresence,
-} from "./discordClient.js";
+} from "./discordClient";
 import {
 	initializePosition,
 	parseChatLine,
 	readNewLines,
 	scanFullLog,
-} from "./logParser.js";
-import { formatMessage, shouldRelayEvent } from "./messageFormatter.js";
-import type { PlayerTracker } from "./playerTracker.js";
-import { createPlayerTracker } from "./playerTracker.js";
-import { isServerOnline } from "./serverMonitor.js";
-import type { ChatMessage, Config } from "./types.js";
+} from "./logParser";
+import { formatMessage, shouldRelayEvent } from "./messageFormatter";
+import type { PlayerTracker } from "./playerTracker";
+import { createPlayerTracker } from "./playerTracker";
+import { isServerOnline } from "./serverMonitor";
+import type { ChatMessage, Config } from "./types";
+import { readServerClientVersion } from "./versionInfo";
 
 const DEFAULT_CONFIG_PATH = "config.json";
 
@@ -32,6 +33,11 @@ const delay = (ms: number): Promise<void> =>
 	new Promise((resolve) => {
 		setTimeout(resolve, ms);
 	});
+
+interface PollLoopOptions {
+	versionMismatchEnabled: boolean;
+	serverVersion: string | null;
+}
 
 function getConfigPath(): string {
 	const [, , providedPath] = process.argv;
@@ -97,7 +103,13 @@ async function monitorServerStatus(config: Config): Promise<void> {
 	}
 }
 
-async function pollLoop(config: Config, tracker: PlayerTracker): Promise<void> {
+async function pollLoop(
+	config: Config,
+	tracker: PlayerTracker,
+	options: PollLoopOptions,
+): Promise<void> {
+	const { versionMismatchEnabled, serverVersion } = options;
+
 	let lastPosition = await initializePosition(config.cubyzLogPath);
 	let warnedMissingFile = false;
 
@@ -141,6 +153,22 @@ async function pollLoop(config: Config, tracker: PlayerTracker): Promise<void> {
 					}
 
 					messages.push(chatMessage);
+
+					if (chatMessage.type === "join") {
+						if (
+							versionMismatchEnabled &&
+							serverVersion &&
+							sessionVersionsDiffer(
+								chatMessage.metadata?.clientVersion ?? "",
+								serverVersion,
+							)
+						) {
+							messages.push({
+								...chatMessage,
+								type: "version-check",
+							});
+						}
+					}
 
 					if (chatMessage.type === "join") {
 						const previousCount = tracker.count;
@@ -239,10 +267,42 @@ function setupQuitHandler(): void {
 	console.log("Press q to quit.");
 }
 
+function sessionVersionsDiffer(
+	clientVersion: string,
+	serverVersion: string,
+): boolean {
+	return clientVersion.trim() !== serverVersion.trim();
+}
+
 async function main(): Promise<void> {
 	try {
 		const configPath = getConfigPath();
 		const config = await loadConfig(configPath);
+
+		const versionMismatchEnabled = config.events.includes("version-check");
+		let serverVersion: string | null = config.serverVersion;
+
+		if (versionMismatchEnabled) {
+			if (serverVersion) {
+				console.log(`Using configured server client version: ${serverVersion}`);
+			} else {
+				try {
+					serverVersion = await readServerClientVersion(config.cubyzLogPath);
+					if (serverVersion) {
+						console.log(`Server client version: ${serverVersion}`);
+					} else {
+						console.warn(
+							`Unable to determine server client version from ${config.cubyzLogPath}.`,
+						);
+					}
+				} catch (error) {
+					console.warn(
+						`Failed to read server client version from ${config.cubyzLogPath}:`,
+						error,
+					);
+				}
+			}
+		}
 
 		console.log("Connecting to Discord...");
 		await initializeDiscordClient(config.discord.token);
@@ -274,7 +334,12 @@ async function main(): Promise<void> {
 
 		console.log(`Monitoring log file: ${config.cubyzLogPath}`);
 
-		const tasks: Promise<void>[] = [pollLoop(config, tracker)];
+		const tasks: Promise<void>[] = [
+			pollLoop(config, tracker, {
+				versionMismatchEnabled,
+				serverVersion,
+			}),
+		];
 
 		if (config.monitoring.enabled) {
 			tasks.push(monitorServerStatus(config));

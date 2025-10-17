@@ -2,9 +2,16 @@ import { access, copyFile, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import type { Config, EventType } from "./types.js";
+import type { Config, EventType } from "./types";
 
-const DEFAULT_EVENTS: EventType[] = ["join", "leave", "death", "chat"];
+const DEFAULT_EVENTS: EventType[] = [
+	"join",
+	"leave",
+	"death",
+	"chat",
+	"version-check",
+];
+const SUPPORTED_EVENTS: EventType[] = [...DEFAULT_EVENTS];
 const DEFAULT_INTERVAL_MS = 1000;
 const DEFAULT_UPDATE_PRESENCE = true;
 const DEFAULT_MONITORING_ENABLED = false;
@@ -72,6 +79,11 @@ function applyDefaults(partial: Partial<Config>): Config {
 					? Math.floor(partial.monitoring.intervalSeconds)
 					: DEFAULT_MONITORING_INTERVAL_SECONDS,
 		},
+		serverVersion:
+			typeof partial.serverVersion === "string" &&
+			partial.serverVersion.trim().length > 0
+				? partial.serverVersion.trim()
+				: null,
 	};
 }
 
@@ -116,7 +128,7 @@ export function validateConfig(config: Config): void {
 	}
 
 	const unknownEvents = config.events.filter(
-		(event) => !DEFAULT_EVENTS.includes(event),
+		(event) => !SUPPORTED_EVENTS.includes(event),
 	);
 	if (unknownEvents.length > 0) {
 		throw new Error(
@@ -162,6 +174,16 @@ export function validateConfig(config: Config): void {
 	) {
 		throw new Error(
 			'Configuration error: "monitoring.intervalSeconds" must be a positive number.',
+		);
+	}
+
+	if (
+		config.serverVersion !== null &&
+		(typeof config.serverVersion !== "string" ||
+			config.serverVersion.trim().length === 0)
+	) {
+		throw new Error(
+			'Configuration error: "serverVersion" must be a non-empty string when provided.',
 		);
 	}
 }

@@ -1,4 +1,4 @@
-export type EventType = "join" | "leave" | "death" | "chat";
+export type EventType = "join" | "leave" | "death" | "chat" | "version-check";
 
 export interface ServerMonitoringConfig {
 	enabled: boolean;
@@ -16,6 +16,7 @@ export interface Config {
 	updateIntervalMs: number;
 	updatePresence: boolean;
 	monitoring: ServerMonitoringConfig;
+	serverVersion: string | null;
 }
 
 export interface ChatMessage {
@@ -24,4 +25,5 @@ export interface ChatMessage {
 	rawUsername: string;
 	message?: string;
 	timestamp: Date;
+	metadata?: Record<string, string>;
 }

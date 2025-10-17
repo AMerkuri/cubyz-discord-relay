@@ -8,6 +8,7 @@ CLI tool that streams [Cubyz](https://github.com/PixelGuys/Cubyz) game server ch
 
 - Watches the Cubyz `latest.log` file
 - Supports join, leave, death, and chat events
+- Alerts when a player's client version differs from the server version
 - Cleans Cubyz markdown-style usernames before relaying
 - Filters events based on configuration
 - Shows current player count in the bot's Discord presence
@@ -58,7 +59,8 @@ npm install
    - `cubyzLogPath`: absolute path to Cubyz `latest.log`
    - `discord.token`: bot token
    - `discord.channelId`: target channel ID
-   - `events`: event types to relay (`join`, `leave`, `death`, `chat`)
+   - `events`: event types to relay (`join`, `leave`, `death`, `chat`, `version-check`)
+   - `serverVersion`: optional override for the server client version; leave as `null` to auto-detect from the log
    - `updateIntervalMs`: polling interval in milliseconds
    - `updatePresence`: set to `false` to disable Discord presence updates
    - `monitoring`: optional server monitor (set `enabled` to `true`, adjust `port` and `intervalSeconds`)

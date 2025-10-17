@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { cleanUsername, formatMessage } from "../src/messageFormatter.js";
-import type { ChatMessage } from "../src/types.js";
+import { cleanUsername, formatMessage } from "../src/messageFormatter";
+import type { ChatMessage } from "../src/types";
 
 test("cleanUsername strips Cubyz formatting", () => {
 	const raw = "***#6A5ACDM#8A2BE2e#9932CCr#C71585c***§#ffff00";
@@ -86,4 +86,19 @@ test("formats death messages", () => {
 	};
 
 	assert.equal(formatMessage(message), "💀 **Bob died of fall damage**");
+});
+
+test("formats version mismatch messages", () => {
+	const message: ChatMessage = {
+		type: "version-check",
+		rawUsername: "***#6A5ACDM#8A2BE2e#9932CCr#C71585c#FF00FFu#FF69B4r***",
+		username: "Mercur",
+		timestamp,
+		metadata: { clientVersion: "0.0.1" },
+	};
+
+	assert.equal(
+		formatMessage(message),
+		"⚠️ **Mercur uses incompatible client version 0.0.1**",
+	);
 });

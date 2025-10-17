@@ -4,7 +4,8 @@
 		"token": "YOUR_DISCORD_BOT_TOKEN",
 		"channelId": "YOUR_CHANNEL_ID"
 	},
-	"events": ["join", "leave", "death", "chat"],
+	"events": ["join", "leave", "death", "chat", "version-check"],
+	"serverVersion": null,
 	"updateIntervalMs": 1000,
 	"updatePresence": true,
 	"monitoring": {
