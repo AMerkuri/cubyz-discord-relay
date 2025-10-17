@@ -2,7 +2,7 @@ import { access, copyFile, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import type { Config, EventType } from "./types";
+import type { Config, EventType } from "./types.js";
 
 const DEFAULT_EVENTS: EventType[] = [
 	"join",

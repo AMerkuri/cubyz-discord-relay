@@ -2,25 +2,25 @@
 import process from "node:process";
 import type { Key } from "node:readline";
 import readline from "node:readline";
-import { ConfigTemplateCreatedError, loadConfig } from "./config";
+import { ConfigTemplateCreatedError, loadConfig } from "./config.js";
 import {
 	cleanup,
 	initializeDiscordClient,
 	sendMessage,
 	updatePresence,
-} from "./discordClient";
+} from "./discordClient.js";
 import {
 	initializePosition,
 	parseChatLine,
 	readNewLines,
 	scanFullLog,
-} from "./logParser";
-import { formatMessage, shouldRelayEvent } from "./messageFormatter";
-import type { PlayerTracker } from "./playerTracker";
-import { createPlayerTracker } from "./playerTracker";
-import { isServerOnline } from "./serverMonitor";
-import type { ChatMessage, Config } from "./types";
-import { readServerClientVersion } from "./versionInfo";
+} from "./logParser.js";
+import { formatMessage, shouldRelayEvent } from "./messageFormatter.js";
+import type { PlayerTracker } from "./playerTracker.js";
+import { createPlayerTracker } from "./playerTracker.js";
+import { isServerOnline } from "./serverMonitor.js";
+import type { ChatMessage, Config } from "./types.js";
+import { readServerClientVersion } from "./versionInfo.js";
 
 const DEFAULT_CONFIG_PATH = "config.json";
 

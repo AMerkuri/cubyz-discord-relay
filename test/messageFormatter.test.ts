@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { cleanUsername, formatMessage } from "../src/messageFormatter";
-import type { ChatMessage } from "../src/types";
+import { cleanUsername, formatMessage } from "../src/messageFormatter.js";
+import type { ChatMessage } from "../src/types.js";
 
 test("cleanUsername strips Cubyz formatting", () => {
 	const raw = "***#6A5ACDM#8A2BE2e#9932CCr#C71585c***§#ffff00";

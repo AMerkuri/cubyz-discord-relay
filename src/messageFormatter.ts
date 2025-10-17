@@ -1,4 +1,4 @@
-import type { ChatMessage, Config, EventType } from "./types";
+import type { ChatMessage, Config, EventType } from "./types.js";
 
 export function cleanUsername(raw: string): string {
 	let result = raw;

@@ -1,9 +1,8 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { parseChatLine } from "../src/logParser";
+import { parseChatLine } from "../src/logParser.js";
 
-const rawUsername =
-	"***#6A5ACDM#8A2BE2e#9932CCr#C71585c#FF00FFu#FF69B4r***";
+const rawUsername = "***#6A5ACDM#8A2BE2e#9932CCr#C71585c#FF00FFu#FF69B4r***";
 
 const buildVersionedJoinLine = (version: string): string =>
 	`[info]: User ${rawUsername} joined using version ${version}`;

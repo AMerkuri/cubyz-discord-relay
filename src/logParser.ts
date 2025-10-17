@@ -1,7 +1,7 @@
 import { Buffer } from "node:buffer";
 import { open, stat } from "node:fs/promises";
-import { cleanUsername } from "./messageFormatter";
-import type { ChatMessage } from "./types";
+import { cleanUsername } from "./messageFormatter.js";
+import type { ChatMessage } from "./types.js";
 
 const CHAT_PATTERN = /\[info\]:\s*(?:User \[info\]:\s*)?Chat:\s*(.+)/i;
 const VERSIONED_JOIN_PATTERN =

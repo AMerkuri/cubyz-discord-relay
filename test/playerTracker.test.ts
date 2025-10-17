@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { createPlayerTracker } from "../src/playerTracker";
+import { createPlayerTracker } from "../src/playerTracker.js";
 
 test("increment adds unique players", () => {
 	const tracker = createPlayerTracker();
