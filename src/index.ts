@@ -62,7 +62,10 @@ async function relayMessages(
 	}
 }
 
-async function monitorServerStatus(config: Config): Promise<void> {
+async function monitorServerStatus(
+	config: Config,
+	tracker: PlayerTracker,
+): Promise<void> {
 	const intervalMs = config.monitoring.intervalSeconds * 1000;
 	let lastKnownOnline: boolean | null = null;
 
@@ -86,6 +89,18 @@ async function monitorServerStatus(config: Config): Promise<void> {
 			console.log(
 				`Server monitor: Cubyz server is ${statusText.toLowerCase()}.`,
 			);
+
+			if (!online) {
+				const previousCount = tracker.count;
+				tracker.reset();
+				if (config.updatePresence && previousCount !== tracker.count) {
+					try {
+						await updatePresence(tracker.count);
+					} catch (error) {
+						console.error("Failed to update Discord presence:", error);
+					}
+				}
+			}
 
 			try {
 				await sendMessage(config.discord.channelId, message);
@@ -342,7 +357,7 @@ async function main(): Promise<void> {
 		];
 
 		if (config.monitoring.enabled) {
-			tasks.push(monitorServerStatus(config));
+			tasks.push(monitorServerStatus(config, tracker));
 		}
 
 		await Promise.all(tasks);
