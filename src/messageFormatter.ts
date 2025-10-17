@@ -11,7 +11,43 @@ export function cleanUsername(raw: string): string {
 	return result.trim();
 }
 
-export function formatMessage(chatMessage: ChatMessage): string {
+const censorMessage = (
+	message: string,
+	blacklist: readonly string[],
+): string => {
+	if (!message || blacklist.length === 0) {
+		return message;
+	}
+
+	const normalizedTerms = blacklist
+		.map((entry) => entry.trim().toLowerCase())
+		.filter((entry) => entry.length > 0);
+
+	if (normalizedTerms.length === 0) {
+		return message;
+	}
+
+	return message
+		.split(/(\s+)/)
+		.map((segment) => {
+			if (segment.trim().length === 0) {
+				return segment;
+			}
+
+			const lowerSegment = segment.toLowerCase();
+			const containsTerm = normalizedTerms.some((term) =>
+				lowerSegment.includes(term),
+			);
+
+			return containsTerm ? "||beep||" : segment;
+		})
+		.join("");
+};
+
+export function formatMessage(
+	chatMessage: ChatMessage,
+	config?: Config,
+): string {
 	const username = chatMessage.username;
 
 	switch (chatMessage.type) {
@@ -22,7 +58,10 @@ export function formatMessage(chatMessage: ChatMessage): string {
 		case "death":
 			return `💀 **${username} ${chatMessage.message ?? "died"}**`;
 		case "chat":
-			return `**${username}**: ${chatMessage.message ?? ""}`;
+			return `**${username}**: ${censorMessage(
+				chatMessage.message ?? "",
+				config?.blacklist ?? [],
+			)}`;
 		case "version-check":
 			return `⚠️ **${username} uses incompatible client version ${chatMessage.metadata?.clientVersion ?? "unknown"}**`;
 		default:

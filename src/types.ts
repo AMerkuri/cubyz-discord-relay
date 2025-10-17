@@ -17,6 +17,7 @@ export interface Config {
 	updatePresence: boolean;
 	monitoring: ServerMonitoringConfig;
 	serverVersion: string | null;
+	blacklist: string[];
 }
 
 export interface ChatMessage {

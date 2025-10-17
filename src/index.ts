@@ -53,7 +53,7 @@ async function relayMessages(
 			continue;
 		}
 
-		const payload = formatMessage(chatMessage);
+		const payload = formatMessage(chatMessage, config);
 		try {
 			await sendMessage(config.discord.channelId, payload);
 		} catch (error) {

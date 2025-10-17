@@ -1,7 +1,25 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
 import { cleanUsername, formatMessage } from "../src/messageFormatter.js";
-import type { ChatMessage } from "../src/types.js";
+import type { ChatMessage, Config } from "../src/types.js";
+
+const baseConfig: Config = {
+	cubyzLogPath: "/tmp/latest.log",
+	discord: {
+		token: "token",
+		channelId: "channel",
+	},
+	events: ["join", "leave", "death", "chat", "version-check"],
+	blacklist: [],
+	updateIntervalMs: 1000,
+	updatePresence: true,
+	monitoring: {
+		enabled: false,
+		port: 47649,
+		intervalSeconds: 60,
+	},
+	serverVersion: null,
+};
 
 test("cleanUsername strips Cubyz formatting", () => {
 	const raw = "***#6A5ACDM#8A2BE2e#9932CCr#C71585c***§#ffff00";
@@ -100,5 +118,25 @@ test("formats version mismatch messages", () => {
 	assert.equal(
 		formatMessage(message),
 		"⚠️ **Mercur uses incompatible client version 0.0.1**",
+	);
+});
+
+test("censors blacklisted chat words", () => {
+	const message: ChatMessage = {
+		type: "chat",
+		rawUsername: "Player123",
+		username: "Player123",
+		message: "This secret is safe",
+		timestamp,
+	};
+
+	const config: Config = {
+		...baseConfig,
+		blacklist: ["secret"],
+	};
+
+	assert.equal(
+		formatMessage(message, config),
+		"**Player123**: This ||beep|| is safe",
 	);
 });

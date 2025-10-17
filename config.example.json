@@ -5,6 +5,7 @@
 		"channelId": "YOUR_CHANNEL_ID"
 	},
 	"events": ["join", "leave", "death", "chat", "version-check"],
+	"blacklist": ["@everyone", "@here"],
 	"serverVersion": null,
 	"updateIntervalMs": 1000,
 	"updatePresence": true,

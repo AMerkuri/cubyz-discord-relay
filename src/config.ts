@@ -17,6 +17,7 @@ const DEFAULT_UPDATE_PRESENCE = true;
 const DEFAULT_MONITORING_ENABLED = false;
 const DEFAULT_MONITORING_PORT = 47649;
 const DEFAULT_MONITORING_INTERVAL_SECONDS = 60;
+const DEFAULT_BLACKLIST = ["@everyone", "@here"];
 const CONFIG_TEMPLATE_PATH = fileURLToPath(
 	new URL("../config.example.json", import.meta.url),
 );
@@ -45,6 +46,15 @@ function applyDefaults(partial: Partial<Config>): Config {
 			? [...partial.events]
 			: DEFAULT_EVENTS;
 
+	const blacklistSource = Array.isArray(partial.blacklist)
+		? partial.blacklist
+		: DEFAULT_BLACKLIST;
+
+	const blacklist = blacklistSource
+		.filter((entry): entry is string => typeof entry === "string")
+		.map((entry) => entry.trim())
+		.filter((entry) => entry.length > 0);
+
 	return {
 		cubyzLogPath: partial.cubyzLogPath ?? "",
 		discord: {
@@ -52,6 +62,7 @@ function applyDefaults(partial: Partial<Config>): Config {
 			channelId: partial.discord?.channelId ?? "",
 		},
 		events: events as EventType[],
+		blacklist,
 		updateIntervalMs:
 			typeof partial.updateIntervalMs === "number" &&
 			partial.updateIntervalMs > 0
@@ -124,6 +135,21 @@ export function validateConfig(config: Config): void {
 	if (!Array.isArray(config.events) || config.events.length === 0) {
 		throw new Error(
 			'Configuration error: "events" must include at least one supported event type.',
+		);
+	}
+
+	if (!Array.isArray(config.blacklist)) {
+		throw new Error(
+			'Configuration error: "blacklist" must be an array of non-empty strings.',
+		);
+	}
+
+	const invalidBlacklistEntries = config.blacklist.filter(
+		(entry) => typeof entry !== "string" || entry.trim().length === 0,
+	);
+	if (invalidBlacklistEntries.length > 0) {
+		throw new Error(
+			'Configuration error: "blacklist" must contain only non-empty strings.',
 		);
 	}
 

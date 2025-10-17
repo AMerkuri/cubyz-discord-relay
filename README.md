@@ -60,6 +60,7 @@ npm install
    - `discord.token`: bot token
    - `discord.channelId`: target channel ID
    - `events`: event types to relay (`join`, `leave`, `death`, `chat`, `version-check`)
+   - `blacklist`: list of words to censor from relayed chat messages (defaults to `@everyone` and `@here`)
    - `serverVersion`: optional override for the server client version; leave as `null` to auto-detect from the log
    - `updateIntervalMs`: polling interval in milliseconds
    - `updatePresence`: set to `false` to disable Discord presence updates
