@@ -1,30 +1,35 @@
-export type EventType = "join" | "leave" | "death" | "chat" | "version-check";
+export type EventType = "join" | "leave" | "death" | "chat";
 
-export interface ServerMonitoringConfig {
-	enabled: boolean;
-	port: number;
-	intervalSeconds: number;
+export interface CubyzConnectionConfig {
+  host: string;
+  port: number;
+  botName: string;
+  version: string;
+}
+
+export interface ConnectionRetryConfig {
+  reconnect: boolean;
+  maxRetries: number;
+  retryDelayMs: number;
 }
 
 export interface Config {
-	cubyzLogPath: string;
-	discord: {
-		token: string;
-		channelId: string;
-	};
-	events: EventType[];
-	updateIntervalMs: number;
-	updatePresence: boolean;
-	monitoring: ServerMonitoringConfig;
-	serverVersion: string | null;
-	blacklist: string[];
+  cubyz: CubyzConnectionConfig;
+  connection: ConnectionRetryConfig;
+  discord: {
+    token: string;
+    channelId: string;
+  };
+  events: EventType[];
+  censorlist: string[];
+  excludeBotFromCount: boolean;
 }
 
 export interface ChatMessage {
-	type: EventType;
-	username: string;
-	rawUsername: string;
-	message?: string;
-	timestamp: Date;
-	metadata?: Record<string, string>;
+  type: EventType;
+  username: string;
+  rawUsername: string;
+  message?: string;
+  timestamp: Date;
+  metadata?: Record<string, string>;
 }

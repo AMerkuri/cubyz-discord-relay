@@ -1,17 +1,20 @@
 {
-	"cubyzLogPath": "/path/to/cubyz/logs/latest.log",
-	"discord": {
-		"token": "YOUR_DISCORD_BOT_TOKEN",
-		"channelId": "YOUR_CHANNEL_ID"
-	},
-	"events": ["join", "leave", "death", "chat", "version-check"],
-	"blacklist": ["@everyone", "@here"],
-	"serverVersion": null,
-	"updateIntervalMs": 1000,
-	"updatePresence": true,
-	"monitoring": {
-		"enabled": false,
-		"port": 47649,
-		"intervalSeconds": 60
-	}
+  "cubyz": {
+    "host": "127.0.0.1",
+    "port": 47649,
+    "botName": "Discord",
+    "version": "0.0.0"
+  },
+  "discord": {
+    "token": "YOUR_DISCORD_BOT_TOKEN",
+    "channelId": "YOUR_CHANNEL_ID"
+  },
+  "events": ["join", "leave", "death", "chat"],
+  "censorlist": [],
+  "excludeBotFromCount": true,
+  "connection": {
+    "reconnect": true,
+    "maxRetries": 0,
+    "retryDelayMs": 30000
+  }
 }

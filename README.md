@@ -1,23 +1,21 @@
 # Cubyz Discord Relay
 
-CLI tool that streams [Cubyz](https://github.com/PixelGuys/Cubyz) game server chat events into a Discord channel in near real time.
+CLI tool that relays [Cubyz](https://github.com/PixelGuys/Cubyz) game server chat events to Discord and forwards Discord chat back to the server.
 
 ![Cubyz Discord Relay](https://raw.githubusercontent.com/AMerkuri/cubyz-discord-relay/refs/heads/master/assets/discord.png)
 
 ## Features
 
-- Watches the Cubyz `latest.log` file
-- Supports join, leave, death, and chat events
-- Alerts when a player's client version differs from the server version
-- Cleans Cubyz markdown-style usernames before relaying
-- Filters events based on configuration
-- Shows current player count in the bot's Discord presence
-- Optionally monitors the server UDP port and announces online/offline changes
+- Connects to the Cubyz server using game protocol over UDP as a bot player
+- Relays join, leave, death, and chat events to Discord with presence updates
+- Forwards Discord channel messages back into Cubyz, keeping role colors in-game
+- Cleans Cubyz markdown-style usernames and censors configurable words
+- Automatic reconnection with exponential backoff and retry limits
 
 ## Prerequisites
 
 - Node.js 18 or newer
-- Discord bot token with permission to post in the target channel
+- Discord bot token with permission to read and post in the target channel (Message Content intent enabled)
 
 ## Installation
 
@@ -40,7 +38,10 @@ You can also run once without a global install via `npx cubyz-discord-relay`.
 Your Discord bot requires these permissions:
 
 - **View Channels** – Access the target channel
-- **Send Messages** – Forward chat messages from Cubyz
+- **Read Message History** – Receive ongoing chat content
+- **Send Messages** – Post Cubyz events and status updates
+
+Additionally, enable the **Message Content Intent** for your bot in the Discord Developer Portal so it can read user messages to forward them to Cubyz.
 
 Generate an invite link in the Discord Developer Portal that grants these permissions before running the relay.
 
@@ -54,17 +55,19 @@ npm install
 
 ### Configuration
 
-1. Copy `config.example.json` to `config.json`.
-2. Update the fields:
-   - `cubyzLogPath`: absolute path to Cubyz `latest.log`
-   - `discord.token`: bot token
+1. Copy `config.example.json` to `config.json` (or run the CLI once to generate it automatically).
+2. Update the sections:
+   - `cubyz.host` / `cubyz.port`: address of the Cubyz UDP server
+   - `cubyz.botName`: in-game name the relay uses when joining the server
+   - `cubyz.version`: client version string to present during the Cubyz handshake
+   - `discord.token`: Discord bot token
    - `discord.channelId`: target channel ID
-   - `events`: event types to relay (`join`, `leave`, `death`, `chat`, `version-check`)
-   - `blacklist`: list of words to censor from relayed chat messages (defaults to `@everyone` and `@here`)
-   - `serverVersion`: optional override for the server client version; leave as `null` to auto-detect from the log
-   - `updateIntervalMs`: polling interval in milliseconds
-   - `updatePresence`: set to `false` to disable Discord presence updates
-   - `monitoring`: optional server monitor (set `enabled` to `true`, adjust `port` and `intervalSeconds`)
+   - `events`: subset of `join`, `leave`, `death`, `chat` to relay
+     - `censorlist`: words to censor
+   - `excludeBotFromCount`: omit the relay bot from the player count when `true`
+   - `connection.reconnect`: enable/disable automatic reconnect attempts
+   - `connection.maxRetries`: maximum reconnect attempts (`0` = infinite)
+   - `connection.retryDelayMs`: initial delay before retrying (milliseconds)
 
 > First run convenience: if `config.json` is missing, the CLI writes a fresh template in your working directory and exits so you can fill it in before retrying.
 
@@ -80,11 +83,11 @@ During execution press `q` or `Ctrl+C` to exit gracefully.
 
 ## Troubleshooting
 
-- **Bot not posting**: verify bot token, channel ID, and permissions
-- **No events forwarded**: ensure `events` include the desired types and the log is updating
-- **Missing log file**: the tool waits for `cubyzLogPath` to appear and resumes automatically
+- **Bot not posting**: verify the Discord bot token, channel ID, and permissions
+- **Bot stuck reconnecting**: ensure the Cubyz server is reachable and the configured version/name are allowed
+- **Presence count wrong**: confirm `excludeBotFromCount` is set appropriately and the bot remains connected
+- **No events forwarded**: check that the bot successfully joins the server (look for the "Bot connected" Discord message)
 
 ## Limitations
 
-- **Unidirectional relay**: Messages flow from Cubyz → Discord only.
-- **Log rotation**: When `latest.log` rotates, the relay resumes but presence accuracy depends on future events.
+- **Requires player slot**: The relay consumes one in-game player slot while connected.

@@ -2,379 +2,310 @@
 import process from "node:process";
 import type { Key } from "node:readline";
 import readline from "node:readline";
+import type { Client, Message } from "discord.js";
+import { BotConnectionManager } from "./botConnection.js";
 import { ConfigTemplateCreatedError, loadConfig } from "./config.js";
 import {
-	cleanup,
-	initializeDiscordClient,
-	sendMessage,
-	updatePresence,
+  cleanup,
+  initializeDiscordClient,
+  sendMessage,
+  updatePresence,
 } from "./discordClient.js";
 import {
-	initializePosition,
-	parseChatLine,
-	readNewLines,
-	scanFullLog,
-} from "./logParser.js";
-import { formatMessage, shouldRelayEvent } from "./messageFormatter.js";
-import type { PlayerTracker } from "./playerTracker.js";
-import { createPlayerTracker } from "./playerTracker.js";
-import { isServerOnline } from "./serverMonitor.js";
+  cleanUsername,
+  formatMessage,
+  shouldRelayEvent,
+} from "./messageFormatter.js";
 import type { ChatMessage, Config } from "./types.js";
-import { readServerClientVersion } from "./versionInfo.js";
 
 const DEFAULT_CONFIG_PATH = "config.json";
+const DEFAULT_CUBYZ_COLOR_RESET = "#FFFFFF";
 
-let isRunning = true;
-let isShuttingDown = false;
+let botNormalizedName = "";
+
+let bot: BotConnectionManager | null = null;
 let keypressHandler: ((str: string, key: Key) => void) | null = null;
 let rawModeEnabled = false;
-
-const delay = (ms: number): Promise<void> =>
-	new Promise((resolve) => {
-		setTimeout(resolve, ms);
-	});
-
-interface PollLoopOptions {
-	versionMismatchEnabled: boolean;
-	serverVersion: string | null;
-}
+let isShuttingDown = false;
 
 function getConfigPath(): string {
-	const [, , providedPath] = process.argv;
-	return providedPath ?? DEFAULT_CONFIG_PATH;
+  const [, , providedPath] = process.argv;
+  return providedPath ?? DEFAULT_CONFIG_PATH;
 }
 
-async function relayMessages(
-	config: Config,
-	chatMessages: ChatMessage[],
-): Promise<void> {
-	for (const chatMessage of chatMessages) {
-		if (!shouldRelayEvent(chatMessage.type, config)) {
-			continue;
-		}
+const collapseWhitespace = (input: string): string =>
+  input.replace(/\s+/g, " ").trim();
 
-		const payload = formatMessage(chatMessage, config);
-		try {
-			await sendMessage(config.discord.channelId, payload);
-		} catch (error) {
-			console.error("Failed to send message to Discord:", error);
-		}
-	}
+const resolveDiscordDisplayName = (message: Message): string => {
+  const preferred =
+    message.member?.displayName ??
+    message.author.globalName ??
+    message.author.username;
+
+  const primary = cleanUsername(preferred ?? message.author.username);
+  if (primary.length > 0) {
+    return primary;
+  }
+
+  const fallback = cleanUsername(message.author.username);
+  if (fallback.length > 0) {
+    return fallback;
+  }
+
+  return `User${message.author.id.slice(-4)}`;
+};
+
+const resolveDiscordHexColor = (message: Message): string | null => {
+  const hex = message.member?.displayHexColor;
+  if (!hex || hex === "#000000") {
+    return null;
+  }
+
+  return hex.toUpperCase();
+};
+
+function setupDiscordChatRelay(client: Client<boolean>, config: Config): void {
+  client.on("messageCreate", (message) => {
+    if (message.channelId !== config.discord.channelId) {
+      return;
+    }
+
+    if (message.author.bot || message.system) {
+      return;
+    }
+
+    const normalizedContent = collapseWhitespace(message.cleanContent);
+    if (normalizedContent.length === 0) {
+      return;
+    }
+
+    if (!bot) {
+      console.warn(
+        "Received Discord message before Cubyz connection was ready.",
+      );
+      return;
+    }
+
+    const name = resolveDiscordDisplayName(message);
+    const color = resolveDiscordHexColor(message);
+    const payload =
+      color && color !== "#FFFFFF"
+        ? `${color}${name}${DEFAULT_CUBYZ_COLOR_RESET}: ${normalizedContent}`
+        : `${name}: ${normalizedContent}`;
+
+    bot.sendChat(payload).catch((error) => {
+      console.error("Failed to relay Discord message to Cubyz:", error);
+    });
+  });
 }
 
-async function monitorServerStatus(
-	config: Config,
-	tracker: PlayerTracker,
+async function relayMessage(
+  config: Config,
+  chatMessage: ChatMessage,
 ): Promise<void> {
-	const intervalMs = config.monitoring.intervalSeconds * 1000;
-	let lastKnownOnline: boolean | null = null;
+  if (!shouldRelayEvent(chatMessage.type, config)) {
+    return;
+  }
 
-	while (isRunning) {
-		let online = false;
+  if (
+    chatMessage.type === "chat" &&
+    botNormalizedName.length > 0 &&
+    chatMessage.username.toLowerCase() === botNormalizedName
+  ) {
+    return;
+  }
 
-		try {
-			online = await isServerOnline(config.monitoring.port);
-		} catch (error) {
-			console.error("Failed to check server status:", error);
-		}
-
-		const statusChanged =
-			lastKnownOnline === null || online !== lastKnownOnline;
-
-		if (statusChanged) {
-			const statusText = online ? "ONLINE" : "OFFLINE";
-			const message = online
-				? "🟢 **Server is online**"
-				: "🔴 **Server is offline**";
-			console.log(
-				`Server monitor: Cubyz server is ${statusText.toLowerCase()}.`,
-			);
-
-			if (!online) {
-				const previousCount = tracker.count;
-				tracker.reset();
-				if (config.updatePresence && previousCount !== tracker.count) {
-					try {
-						await updatePresence(tracker.count);
-					} catch (error) {
-						console.error("Failed to update Discord presence:", error);
-					}
-				}
-			}
-
-			try {
-				await sendMessage(config.discord.channelId, message);
-				lastKnownOnline = online;
-			} catch (error) {
-				console.error("Failed to send server status to Discord:", error);
-			}
-		}
-
-		if (!isRunning) {
-			break;
-		}
-
-		await delay(intervalMs);
-	}
+  const payload = formatMessage(chatMessage, config);
+  try {
+    await sendMessage(config.discord.channelId, payload);
+  } catch (error) {
+    console.error("Failed to send message to Discord:", error);
+  }
 }
 
-async function pollLoop(
-	config: Config,
-	tracker: PlayerTracker,
-	options: PollLoopOptions,
+async function updatePlayerCount(players: readonly string[]): Promise<void> {
+  try {
+    await updatePresence(players.length);
+  } catch (error) {
+    console.error("Failed to update Discord presence:", error);
+  }
+}
+
+async function handleDisconnection(
+  config: Config,
+  { reason, attempts }: { reason: string; attempts?: number },
 ): Promise<void> {
-	const { versionMismatchEnabled, serverVersion } = options;
+  try {
+    await updatePresence(0);
+  } catch (error) {
+    console.error("Failed to update Discord presence:", error);
+  }
 
-	let lastPosition = await initializePosition(config.cubyzLogPath);
-	let warnedMissingFile = false;
+  let message: string | null = null;
+  if (reason === "retries-exhausted") {
+    const attemptText =
+      typeof attempts === "number" && attempts > 0
+        ? ` after ${attempts} attempts`
+        : "";
+    message = `❌ **Failed to reconnect${attemptText}**`;
+  } else if (reason === "server") {
+    message = "🔴 **Bot disconnected from server**";
+  } else if (reason === "error") {
+    message = "⚠️ **Bot connection failed**";
+  }
 
-	while (isRunning) {
-		try {
-			const previousPosition = lastPosition;
-			const { lines, newPosition, fileMissing } = await readNewLines(
-				config.cubyzLogPath,
-				lastPosition,
-			);
-
-			if (fileMissing && !warnedMissingFile) {
-				console.warn("Log file not found. Waiting for it to appear...");
-				warnedMissingFile = true;
-			}
-
-			if (!fileMissing && warnedMissingFile) {
-				console.info("Log file detected. Resuming monitoring.");
-				warnedMissingFile = false;
-				lastPosition = await initializePosition(config.cubyzLogPath);
-				await delay(config.updateIntervalMs);
-				continue;
-			}
-
-			if (!fileMissing && newPosition < previousPosition) {
-				console.info(
-					"Log file size decreased. Assuming rotation and continuing from new end.",
-				);
-			}
-
-			lastPosition = newPosition;
-
-			if (lines.length > 0) {
-				const messages: ChatMessage[] = [];
-				let presenceNeedsUpdate = false;
-
-				for (const line of lines) {
-					const chatMessage = parseChatLine(line);
-					if (!chatMessage) {
-						continue;
-					}
-
-					messages.push(chatMessage);
-
-					if (chatMessage.type === "join") {
-						if (
-							versionMismatchEnabled &&
-							serverVersion &&
-							sessionVersionsDiffer(
-								chatMessage.metadata?.clientVersion ?? "",
-								serverVersion,
-							)
-						) {
-							messages.push({
-								...chatMessage,
-								type: "version-check",
-							});
-						}
-					}
-
-					if (chatMessage.type === "join") {
-						const previousCount = tracker.count;
-						const newCount = tracker.increment(chatMessage.username);
-						if (newCount !== previousCount) {
-							presenceNeedsUpdate = true;
-						}
-					} else if (chatMessage.type === "leave") {
-						const previousCount = tracker.count;
-						const newCount = tracker.decrement(chatMessage.username);
-						if (newCount !== previousCount) {
-							presenceNeedsUpdate = true;
-						}
-					}
-				}
-
-				if (presenceNeedsUpdate && config.updatePresence) {
-					try {
-						await updatePresence(tracker.count);
-					} catch (error) {
-						console.error("Failed to update Discord presence:", error);
-					}
-				}
-
-				if (messages.length > 0) {
-					await relayMessages(config, messages);
-				}
-			}
-		} catch (error) {
-			console.error("Error while processing log file:", error);
-		}
-
-		await delay(config.updateIntervalMs);
-	}
+  if (message) {
+    try {
+      await sendMessage(config.discord.channelId, message);
+    } catch (error) {
+      console.error("Failed to send disconnection message to Discord:", error);
+    }
+  }
 }
 
 async function shutdown(): Promise<void> {
-	if (isShuttingDown) {
-		return;
-	}
+  if (isShuttingDown) {
+    return;
+  }
 
-	isShuttingDown = true;
-	isRunning = false;
+  isShuttingDown = true;
 
-	if (keypressHandler) {
-		process.stdin.off("keypress", keypressHandler);
-		keypressHandler = null;
-	}
+  if (keypressHandler) {
+    process.stdin.off("keypress", keypressHandler);
+    keypressHandler = null;
+  }
 
-	if (
-		rawModeEnabled &&
-		process.stdin.isTTY &&
-		typeof process.stdin.setRawMode === "function"
-	) {
-		process.stdin.setRawMode(false);
-		rawModeEnabled = false;
-	}
+  if (
+    rawModeEnabled &&
+    process.stdin.isTTY &&
+    typeof process.stdin.setRawMode === "function"
+  ) {
+    process.stdin.setRawMode(false);
+    rawModeEnabled = false;
+  }
 
-	process.stdin.pause();
+  process.stdin.pause();
 
-	try {
-		await cleanup();
-	} catch (error) {
-		console.error("Error during cleanup:", error);
-	}
+  try {
+    if (bot) {
+      await bot.stop();
+      bot = null;
+    }
+  } catch (error) {
+    console.error("Failed to stop bot:", error);
+  }
+
+  try {
+    await cleanup();
+  } catch (error) {
+    console.error("Error during cleanup:", error);
+  }
 }
 
 function setupQuitHandler(): void {
-	readline.emitKeypressEvents(process.stdin);
+  readline.emitKeypressEvents(process.stdin);
 
-	if (process.stdin.isTTY && typeof process.stdin.setRawMode === "function") {
-		process.stdin.setRawMode(true);
-		rawModeEnabled = true;
-	}
+  if (process.stdin.isTTY && typeof process.stdin.setRawMode === "function") {
+    process.stdin.setRawMode(true);
+    rawModeEnabled = true;
+  }
 
-	process.stdin.resume();
+  process.stdin.resume();
 
-	keypressHandler = (_input: string, key: Key) => {
-		if (key.sequence === "\u0003" || (key.name === "c" && key.ctrl)) {
-			process.emit("SIGINT");
-			return;
-		}
+  keypressHandler = (_input: string, key: Key) => {
+    if (key.sequence === "\u0003" || (key.name === "c" && key.ctrl)) {
+      process.emit("SIGINT");
+      return;
+    }
 
-		if (key.name === "q" && !key.ctrl && !key.meta) {
-			void shutdown();
-		}
-	};
+    if (key.name === "q" && !key.ctrl && !key.meta) {
+      void shutdown();
+    }
+  };
 
-	process.stdin.on("keypress", keypressHandler);
+  process.stdin.on("keypress", keypressHandler);
 
-	process.on("SIGINT", () => {
-		console.log("\nReceived SIGINT. Shutting down...");
-		void shutdown();
-	});
+  process.on("SIGINT", () => {
+    console.log("\nReceived SIGINT. Shutting down...");
+    void shutdown();
+  });
 
-	console.log("Press q to quit.");
-}
-
-function sessionVersionsDiffer(
-	clientVersion: string,
-	serverVersion: string,
-): boolean {
-	return clientVersion.trim() !== serverVersion.trim();
+  console.log("Press q to quit.");
 }
 
 async function main(): Promise<void> {
-	try {
-		const configPath = getConfigPath();
-		const config = await loadConfig(configPath);
+  try {
+    const configPath = getConfigPath();
+    const config = await loadConfig(configPath);
+    botNormalizedName = cleanUsername(config.cubyz.botName).toLowerCase();
 
-		const versionMismatchEnabled = config.events.includes("version-check");
-		let serverVersion: string | null = config.serverVersion;
+    console.log("Connecting to Discord...");
+    const discordClient = await initializeDiscordClient(config.discord.token);
+    console.log("Connected to Discord.");
 
-		if (versionMismatchEnabled) {
-			if (serverVersion) {
-				console.log(`Using configured server client version: ${serverVersion}`);
-			} else {
-				try {
-					serverVersion = await readServerClientVersion(config.cubyzLogPath);
-					if (serverVersion) {
-						console.log(`Server client version: ${serverVersion}`);
-					} else {
-						console.warn(
-							`Unable to determine server client version from ${config.cubyzLogPath}.`,
-						);
-					}
-				} catch (error) {
-					console.warn(
-						`Failed to read server client version from ${config.cubyzLogPath}:`,
-						error,
-					);
-				}
-			}
-		}
+    try {
+      await updatePresence(0);
+    } catch (error) {
+      console.error("Failed to set initial Discord presence:", error);
+    }
 
-		console.log("Connecting to Discord...");
-		await initializeDiscordClient(config.discord.token);
-		console.log("Connected to Discord.");
+    bot = new BotConnectionManager(
+      config.cubyz,
+      config.connection,
+      config.excludeBotFromCount,
+    );
 
-		console.info("Performing initial log scan to determine player count...");
-		const tracker = createPlayerTracker();
-		tracker.reset();
+    setupDiscordChatRelay(discordClient, config);
 
-		const initialEvents = await scanFullLog(config.cubyzLogPath);
-		for (const event of initialEvents) {
-			if (event.type === "join") {
-				tracker.increment(event.username);
-			} else if (event.type === "leave") {
-				tracker.decrement(event.username);
-			}
-		}
+    bot.on("connected", async () => {
+      console.log("Bot connected to Cubyz server.");
+      try {
+        await sendMessage(
+          config.discord.channelId,
+          "🟢 **Bot connected to server**",
+        );
+      } catch (error) {
+        console.error("Failed to send connection message to Discord:", error);
+      }
+    });
 
-		console.info(`Initial player count: ${tracker.count}`);
-		if (config.updatePresence) {
-			try {
-				await updatePresence(tracker.count);
-			} catch (error) {
-				console.error("Failed to set initial Discord presence:", error);
-			}
-		}
+    bot.on("disconnected", (payload) => {
+      void handleDisconnection(config, payload);
+    });
 
-		setupQuitHandler();
+    bot.on("chat", (chatMessage) => {
+      void relayMessage(config, chatMessage);
+    });
 
-		console.log(`Monitoring log file: ${config.cubyzLogPath}`);
+    bot.on("players", (payload) => {
+      void updatePlayerCount(payload.players);
+    });
 
-		const tasks: Promise<void>[] = [
-			pollLoop(config, tracker, {
-				versionMismatchEnabled,
-				serverVersion,
-			}),
-		];
+    bot.on("reconnecting", ({ attempt, maxRetries, delayMs }) => {
+      const total = maxRetries === null ? "∞" : maxRetries;
+      console.log(`Reconnecting in ${delayMs}ms (attempt ${attempt}/${total})`);
+    });
 
-		if (config.monitoring.enabled) {
-			tasks.push(monitorServerStatus(config, tracker));
-		}
+    bot.on("error", (error) => {
+      console.error("Bot connection error:", error);
+    });
 
-		await Promise.all(tasks);
-	} catch (error) {
-		if (error instanceof ConfigTemplateCreatedError) {
-			console.warn(error.message);
-			console.warn(
-				"Update the generated config file and run the command again.",
-			);
-			process.exitCode = 1;
-		} else {
-			console.error("Fatal error:", error);
-			process.exitCode = 1;
-		}
-	} finally {
-		await shutdown();
-	}
+    setupQuitHandler();
+
+    await bot.start();
+  } catch (error) {
+    if (error instanceof ConfigTemplateCreatedError) {
+      console.warn(error.message);
+      console.warn(
+        "Update the generated config file and run the command again.",
+      );
+      process.exitCode = 1;
+    } else {
+      console.error("Fatal error:", error);
+      process.exitCode = 1;
+    }
+    await shutdown();
+  }
 }
 
 void main();

@@ -2,226 +2,267 @@ import { access, copyFile, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import type { Config, EventType } from "./types.js";
+import type {
+  Config,
+  ConnectionRetryConfig,
+  CubyzConnectionConfig,
+  EventType,
+} from "./types.js";
 
-const DEFAULT_EVENTS: EventType[] = [
-	"join",
-	"leave",
-	"death",
-	"chat",
-	"version-check",
-];
+const DEFAULT_EVENTS: EventType[] = ["join", "leave", "death", "chat"];
 const SUPPORTED_EVENTS: EventType[] = [...DEFAULT_EVENTS];
-const DEFAULT_INTERVAL_MS = 1000;
-const DEFAULT_UPDATE_PRESENCE = true;
-const DEFAULT_MONITORING_ENABLED = false;
-const DEFAULT_MONITORING_PORT = 47649;
-const DEFAULT_MONITORING_INTERVAL_SECONDS = 60;
-const DEFAULT_BLACKLIST = ["@everyone", "@here"];
+const DEFAULT_CENSORLIST: string[] = [];
+const DEFAULT_CUBYZ: CubyzConnectionConfig = {
+  host: "127.0.0.1",
+  port: 47649,
+  botName: "Discord",
+  version: "0.0.0",
+};
+const DEFAULT_CONNECTION: ConnectionRetryConfig = {
+  reconnect: true,
+  maxRetries: 0,
+  retryDelayMs: 30000,
+};
+const DEFAULT_EXCLUDE_BOT_FROM_COUNT = true;
 const CONFIG_TEMPLATE_PATH = fileURLToPath(
-	new URL("../config.example.json", import.meta.url),
+  new URL("../config.example.json", import.meta.url),
 );
 
 const isNotFoundError = (error: unknown): boolean =>
-	typeof error === "object" &&
-	error !== null &&
-	"code" in error &&
-	(error as { code?: string }).code === "ENOENT";
+  typeof error === "object" &&
+  error !== null &&
+  "code" in error &&
+  (error as { code?: string }).code === "ENOENT";
 
 export class ConfigTemplateCreatedError extends Error {
-	readonly configPath: string;
+  readonly configPath: string;
 
-	constructor(configPath: string) {
-		super(
-			`Configuration file not found. A template has been created at ${configPath}. Update it and rerun the cli.`,
-		);
-		this.name = "ConfigTemplateCreatedError";
-		this.configPath = configPath;
-	}
+  constructor(configPath: string) {
+    super(
+      `Configuration file not found. A template has been created at ${configPath}. Update it and rerun the cli.`,
+    );
+    this.name = "ConfigTemplateCreatedError";
+    this.configPath = configPath;
+  }
+}
+
+function coercePort(value: unknown, fallback: number): number {
+  if (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value > 0 &&
+    value <= 65535
+  ) {
+    return value;
+  }
+  return fallback;
+}
+
+function coerceString(value: unknown, fallback: string): string {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : fallback;
 }
 
 function applyDefaults(partial: Partial<Config>): Config {
-	const events =
-		Array.isArray(partial.events) && partial.events.length > 0
-			? [...partial.events]
-			: DEFAULT_EVENTS;
+  const events =
+    Array.isArray(partial.events) && partial.events.length > 0
+      ? [...partial.events]
+      : DEFAULT_EVENTS;
 
-	const blacklistSource = Array.isArray(partial.blacklist)
-		? partial.blacklist
-		: DEFAULT_BLACKLIST;
+  const censorlistSource = Array.isArray(partial.censorlist)
+    ? partial.censorlist
+    : DEFAULT_CENSORLIST;
 
-	const blacklist = blacklistSource
-		.filter((entry): entry is string => typeof entry === "string")
-		.map((entry) => entry.trim())
-		.filter((entry) => entry.length > 0);
+  const censorlist = censorlistSource
+    .filter((entry): entry is string => typeof entry === "string")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
 
-	return {
-		cubyzLogPath: partial.cubyzLogPath ?? "",
-		discord: {
-			token: partial.discord?.token ?? "",
-			channelId: partial.discord?.channelId ?? "",
-		},
-		events: events as EventType[],
-		blacklist,
-		updateIntervalMs:
-			typeof partial.updateIntervalMs === "number" &&
-			partial.updateIntervalMs > 0
-				? Math.floor(partial.updateIntervalMs)
-				: DEFAULT_INTERVAL_MS,
-		updatePresence:
-			typeof partial.updatePresence === "boolean"
-				? partial.updatePresence
-				: DEFAULT_UPDATE_PRESENCE,
-		monitoring: {
-			enabled:
-				typeof partial.monitoring?.enabled === "boolean"
-					? partial.monitoring.enabled
-					: DEFAULT_MONITORING_ENABLED,
-			port:
-				typeof partial.monitoring?.port === "number" &&
-				Number.isInteger(partial.monitoring.port) &&
-				partial.monitoring.port > 0 &&
-				partial.monitoring.port <= 65535
-					? partial.monitoring.port
-					: DEFAULT_MONITORING_PORT,
-			intervalSeconds:
-				typeof partial.monitoring?.intervalSeconds === "number" &&
-				partial.monitoring.intervalSeconds > 0
-					? Math.floor(partial.monitoring.intervalSeconds)
-					: DEFAULT_MONITORING_INTERVAL_SECONDS,
-		},
-		serverVersion:
-			typeof partial.serverVersion === "string" &&
-			partial.serverVersion.trim().length > 0
-				? partial.serverVersion.trim()
-				: null,
-	};
+  const cubyz: CubyzConnectionConfig = {
+    host: coerceString(partial.cubyz?.host, DEFAULT_CUBYZ.host),
+    port: coercePort(partial.cubyz?.port, DEFAULT_CUBYZ.port),
+    botName: coerceString(partial.cubyz?.botName, DEFAULT_CUBYZ.botName),
+    version: coerceString(partial.cubyz?.version, DEFAULT_CUBYZ.version),
+  };
+
+  const connection: ConnectionRetryConfig = {
+    reconnect:
+      typeof partial.connection?.reconnect === "boolean"
+        ? partial.connection.reconnect
+        : DEFAULT_CONNECTION.reconnect,
+    maxRetries:
+      typeof partial.connection?.maxRetries === "number" &&
+      Number.isInteger(partial.connection.maxRetries) &&
+      partial.connection.maxRetries >= 0
+        ? partial.connection.maxRetries
+        : DEFAULT_CONNECTION.maxRetries,
+    retryDelayMs:
+      typeof partial.connection?.retryDelayMs === "number" &&
+      partial.connection.retryDelayMs >= 0
+        ? Math.floor(partial.connection.retryDelayMs)
+        : DEFAULT_CONNECTION.retryDelayMs,
+  };
+
+  return {
+    cubyz,
+    connection,
+    discord: {
+      token: coerceString(partial.discord?.token, ""),
+      channelId: coerceString(partial.discord?.channelId, ""),
+    },
+    events: events as EventType[],
+    censorlist,
+    excludeBotFromCount:
+      typeof partial.excludeBotFromCount === "boolean"
+        ? partial.excludeBotFromCount
+        : DEFAULT_EXCLUDE_BOT_FROM_COUNT,
+  };
 }
 
 async function ensureConfigFile(resolvedPath: string): Promise<void> {
-	try {
-		await access(resolvedPath);
-	} catch (error) {
-		if (isNotFoundError(error)) {
-			await mkdir(path.dirname(resolvedPath), { recursive: true });
-			await copyFile(CONFIG_TEMPLATE_PATH, resolvedPath);
-			throw new ConfigTemplateCreatedError(resolvedPath);
-		}
+  try {
+    await access(resolvedPath);
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      await mkdir(path.dirname(resolvedPath), { recursive: true });
+      await copyFile(CONFIG_TEMPLATE_PATH, resolvedPath);
+      throw new ConfigTemplateCreatedError(resolvedPath);
+    }
 
-		throw error;
-	}
+    throw error;
+  }
 }
 
 export function validateConfig(config: Config): void {
-	if (!config.cubyzLogPath || typeof config.cubyzLogPath !== "string") {
-		throw new Error(
-			'Configuration error: "cubyzLogPath" must be a non-empty string.',
-		);
-	}
+  if (!config.cubyz || typeof config.cubyz !== "object") {
+    throw new Error('Configuration error: "cubyz" section is required.');
+  }
 
-	if (!config.discord?.token || typeof config.discord.token !== "string") {
-		throw new Error('Configuration error: "discord.token" must be provided.');
-	}
+  if (
+    typeof config.cubyz.host !== "string" ||
+    config.cubyz.host.trim().length === 0
+  ) {
+    throw new Error(
+      'Configuration error: "cubyz.host" must be a non-empty string.',
+    );
+  }
 
-	if (
-		!config.discord?.channelId ||
-		typeof config.discord.channelId !== "string"
-	) {
-		throw new Error(
-			'Configuration error: "discord.channelId" must be provided.',
-		);
-	}
+  if (
+    typeof config.cubyz.port !== "number" ||
+    !Number.isInteger(config.cubyz.port) ||
+    config.cubyz.port <= 0 ||
+    config.cubyz.port > 65535
+  ) {
+    throw new Error(
+      'Configuration error: "cubyz.port" must be an integer between 1 and 65535.',
+    );
+  }
 
-	if (!Array.isArray(config.events) || config.events.length === 0) {
-		throw new Error(
-			'Configuration error: "events" must include at least one supported event type.',
-		);
-	}
+  if (
+    typeof config.cubyz.botName !== "string" ||
+    config.cubyz.botName.trim().length === 0
+  ) {
+    throw new Error(
+      'Configuration error: "cubyz.botName" must be a non-empty string.',
+    );
+  }
 
-	if (!Array.isArray(config.blacklist)) {
-		throw new Error(
-			'Configuration error: "blacklist" must be an array of non-empty strings.',
-		);
-	}
+  if (
+    typeof config.cubyz.version !== "string" ||
+    config.cubyz.version.trim().length === 0
+  ) {
+    throw new Error(
+      'Configuration error: "cubyz.version" must be a non-empty string.',
+    );
+  }
 
-	const invalidBlacklistEntries = config.blacklist.filter(
-		(entry) => typeof entry !== "string" || entry.trim().length === 0,
-	);
-	if (invalidBlacklistEntries.length > 0) {
-		throw new Error(
-			'Configuration error: "blacklist" must contain only non-empty strings.',
-		);
-	}
+  if (!config.discord?.token || typeof config.discord.token !== "string") {
+    throw new Error('Configuration error: "discord.token" must be provided.');
+  }
 
-	const unknownEvents = config.events.filter(
-		(event) => !SUPPORTED_EVENTS.includes(event),
-	);
-	if (unknownEvents.length > 0) {
-		throw new Error(
-			`Configuration error: unsupported event types: ${unknownEvents.join(", ")}.`,
-		);
-	}
+  if (
+    !config.discord?.channelId ||
+    typeof config.discord.channelId !== "string"
+  ) {
+    throw new Error(
+      'Configuration error: "discord.channelId" must be provided.',
+    );
+  }
 
-	if (
-		typeof config.updateIntervalMs !== "number" ||
-		config.updateIntervalMs <= 0
-	) {
-		throw new Error(
-			'Configuration error: "updateIntervalMs" must be a positive number.',
-		);
-	}
+  if (!Array.isArray(config.events) || config.events.length === 0) {
+    throw new Error(
+      'Configuration error: "events" must include at least one supported event type.',
+    );
+  }
 
-	if (typeof config.updatePresence !== "boolean") {
-		throw new Error(
-			'Configuration error: "updatePresence" must be a boolean value.',
-		);
-	}
+  const unknownEvents = config.events.filter(
+    (event) => !SUPPORTED_EVENTS.includes(event),
+  );
+  if (unknownEvents.length > 0) {
+    throw new Error(
+      `Configuration error: unsupported event types: ${unknownEvents.join(", ")}.`,
+    );
+  }
 
-	if (typeof config.monitoring?.enabled !== "boolean") {
-		throw new Error(
-			'Configuration error: "monitoring.enabled" must be a boolean value.',
-		);
-	}
+  if (!Array.isArray(config.censorlist)) {
+    throw new Error(
+      'Configuration error: "censorlist" must be an array of non-empty strings.',
+    );
+  }
 
-	if (
-		typeof config.monitoring.port !== "number" ||
-		!Number.isInteger(config.monitoring.port) ||
-		config.monitoring.port <= 0 ||
-		config.monitoring.port > 65535
-	) {
-		throw new Error(
-			'Configuration error: "monitoring.port" must be an integer between 1 and 65535.',
-		);
-	}
+  const invalidCensorlistEntries = config.censorlist.filter(
+    (entry) => typeof entry !== "string" || entry.trim().length === 0,
+  );
+  if (invalidCensorlistEntries.length > 0) {
+    throw new Error(
+      'Configuration error: "censorlist" must contain only non-empty strings.',
+    );
+  }
 
-	if (
-		typeof config.monitoring.intervalSeconds !== "number" ||
-		config.monitoring.intervalSeconds <= 0
-	) {
-		throw new Error(
-			'Configuration error: "monitoring.intervalSeconds" must be a positive number.',
-		);
-	}
+  if (typeof config.excludeBotFromCount !== "boolean") {
+    throw new Error(
+      'Configuration error: "excludeBotFromCount" must be a boolean value.',
+    );
+  }
 
-	if (
-		config.serverVersion !== null &&
-		(typeof config.serverVersion !== "string" ||
-			config.serverVersion.trim().length === 0)
-	) {
-		throw new Error(
-			'Configuration error: "serverVersion" must be a non-empty string when provided.',
-		);
-	}
+  if (typeof config.connection?.reconnect !== "boolean") {
+    throw new Error(
+      'Configuration error: "connection.reconnect" must be a boolean value.',
+    );
+  }
+
+  if (
+    typeof config.connection.maxRetries !== "number" ||
+    !Number.isInteger(config.connection.maxRetries) ||
+    config.connection.maxRetries < 0
+  ) {
+    throw new Error(
+      'Configuration error: "connection.maxRetries" must be a non-negative integer.',
+    );
+  }
+
+  if (
+    typeof config.connection.retryDelayMs !== "number" ||
+    config.connection.retryDelayMs < 0
+  ) {
+    throw new Error(
+      'Configuration error: "connection.retryDelayMs" must be a non-negative number.',
+    );
+  }
 }
 
 export async function loadConfig(configPath: string): Promise<Config> {
-	const resolvedPath = path.resolve(process.cwd(), configPath);
-	await ensureConfigFile(resolvedPath);
-	const raw = await readFile(resolvedPath, "utf8");
-	const parsed = JSON.parse(raw) as Partial<Config>;
-	const config = applyDefaults(parsed);
-	validateConfig(config);
-	return config;
+  const resolvedPath = path.resolve(process.cwd(), configPath);
+  await ensureConfigFile(resolvedPath);
+  const raw = await readFile(resolvedPath, "utf8");
+  const parsedUnknown = JSON.parse(raw) as Record<string, unknown>;
+  if ("cubyzLogPath" in parsedUnknown) {
+    throw new Error(
+      "Configuration error: detected legacy log-based settings. Update the configuration file to use the bot connection schema.",
+    );
+  }
+  const config = applyDefaults(parsedUnknown as Partial<Config>);
+  validateConfig(config);
+  return config;
 }
-
-export { DEFAULT_EVENTS, DEFAULT_INTERVAL_MS, DEFAULT_UPDATE_PRESENCE };
