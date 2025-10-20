@@ -39,12 +39,11 @@ You can also run once without a global install via `npx cubyz-discord-relay`.
 Your Discord bot requires these permissions:
 
 - **View Channels** – Access the target channel
-- **Read Message History** – Receive ongoing chat content
 - **Send Messages** – Post Cubyz events and status updates
 
 Additionally, enable the **Message Content Intent** for your bot in the Discord Developer Portal so it can read user messages to forward them to Cubyz.
 
-Generate an invite link in the Discord Developer Portal that grants these permissions before running the relay.
+Generate an invite link in the [Discord Developer Portal](https://discord.com/developers/applications) that grants these permissions before running the relay.
 
 ## Development
 
