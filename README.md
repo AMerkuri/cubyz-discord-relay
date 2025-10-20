@@ -2,7 +2,8 @@
 
 CLI tool that relays [Cubyz](https://github.com/PixelGuys/Cubyz) game server chat events to Discord and forwards Discord chat back to the server.
 
-![Cubyz Discord Relay](https://raw.githubusercontent.com/AMerkuri/cubyz-discord-relay/refs/heads/master/assets/discord.png)
+![Cubyz Discord Relay](https://raw.githubusercontent.com/AMerkuri/cubyz-discord-relay/refs/heads/master/assets/discord.png)  
+![Cubyz Server](https://raw.githubusercontent.com/AMerkuri/cubyz-discord-relay/refs/heads/master/assets/cubyz.png)
 
 ## Features
 
