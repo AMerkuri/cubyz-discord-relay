@@ -27,6 +27,7 @@ let bot: BotConnectionManager | null = null;
 let keypressHandler: ((str: string, key: Key) => void) | null = null;
 let rawModeEnabled = false;
 let isShuttingDown = false;
+let hasActiveConnection = false;
 
 function getConfigPath(): string {
   const [, , providedPath] = process.argv;
@@ -262,6 +263,7 @@ async function main(): Promise<void> {
 
     bot.on("connected", async () => {
       console.log("Bot connected to Cubyz server.");
+      hasActiveConnection = true;
       try {
         await sendMessage(
           config.discord.channelId,
@@ -273,6 +275,10 @@ async function main(): Promise<void> {
     });
 
     bot.on("disconnected", (payload) => {
+      if (!hasActiveConnection) {
+        return;
+      }
+      hasActiveConnection = false;
       void handleDisconnection(config, payload);
     });
 
