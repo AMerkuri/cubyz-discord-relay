@@ -146,6 +146,7 @@ export class BotConnectionManager extends EventEmitter {
       port: this.connectionConfig.port,
       name: this.connectionConfig.botName,
       version: this.connectionConfig.version,
+      logLevel: this.connectionConfig.logLevel
     };
     const connection = new CubyzConnection(options);
     this.connection = connection;

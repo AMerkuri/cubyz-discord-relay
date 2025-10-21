@@ -18,6 +18,7 @@ const DEFAULT_CUBYZ: CubyzConnectionConfig = {
   port: 47649,
   botName: "Discord",
   version: "0.0.0",
+  logLevel: "info",
 };
 const DEFAULT_CONNECTION: ConnectionRetryConfig = {
   reconnect: true,
@@ -96,6 +97,12 @@ function applyDefaults(partial: Partial<Config>): Config {
     port: coercePort(partial.cubyz?.port, DEFAULT_CUBYZ.port),
     botName: coerceString(partial.cubyz?.botName, DEFAULT_CUBYZ.botName),
     version: coerceString(partial.cubyz?.version, DEFAULT_CUBYZ.version),
+    logLevel: (() => {
+      const v = partial.cubyz?.logLevel;
+      return typeof v === "string" && v.trim().length > 0
+        ? (v.trim() as CubyzConnectionConfig["logLevel"])
+        : DEFAULT_CUBYZ.logLevel;
+    })(),
   };
 
   const allowedMentionsSource = Array.isArray(partial.discord?.allowedMentions)
@@ -195,6 +202,17 @@ export function validateConfig(config: Config): void {
   ) {
     throw new Error(
       'Configuration error: "cubyz.version" must be a non-empty string.',
+    );
+  }
+
+  // Validate optional logLevel if provided
+  const allowedLogLevels = ["error", "debug", "info", "warn", "silent"] as const;
+  if (
+    typeof config.cubyz.logLevel !== "string" ||
+    !(allowedLogLevels as readonly string[]).includes(config.cubyz.logLevel)
+  ) {
+    throw new Error(
+      `Configuration error: "cubyz.logLevel" must be one of: ${allowedLogLevels.join(", ")}.`,
     );
   }
 

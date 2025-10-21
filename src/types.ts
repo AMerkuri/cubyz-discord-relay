@@ -7,6 +7,7 @@ export interface CubyzConnectionConfig {
   port: number;
   botName: string;
   version: string;
+  logLevel?: "error" | "debug" | "info" | "warn" | "silent";
 }
 
 export interface ConnectionRetryConfig {
