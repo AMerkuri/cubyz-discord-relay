@@ -18,6 +18,7 @@ const baseConfig: Config = {
   discord: {
     token: "token",
     channelId: "channel",
+    allowedMentions: [],
   },
   events: ["join", "leave", "death", "chat"],
   censorlist: [],

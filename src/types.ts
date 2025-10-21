@@ -1,5 +1,7 @@
 export type EventType = "join" | "leave" | "death" | "chat";
 
+export type AllowedMentionType = "roles" | "users" | "everyone";
+
 export interface CubyzConnectionConfig {
   host: string;
   port: number;
@@ -19,6 +21,7 @@ export interface Config {
   discord: {
     token: string;
     channelId: string;
+    allowedMentions: AllowedMentionType[];
   };
   events: EventType[];
   censorlist: string[];

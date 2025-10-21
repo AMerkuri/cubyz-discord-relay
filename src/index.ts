@@ -240,7 +240,10 @@ async function main(): Promise<void> {
     botNormalizedName = cleanUsername(config.cubyz.botName).toLowerCase();
 
     console.log("Connecting to Discord...");
-    const discordClient = await initializeDiscordClient(config.discord.token);
+    const discordClient = await initializeDiscordClient(
+      config.discord.token,
+      config.discord.allowedMentions,
+    );
     console.log("Connected to Discord.");
 
     try {

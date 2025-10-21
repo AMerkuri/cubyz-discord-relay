@@ -62,6 +62,7 @@ npm install
    - `cubyz.version`: client version string to present during the Cubyz handshake
    - `discord.token`: Discord bot token
    - `discord.channelId`: target channel ID
+   - `discord.allowedMentions`: array of mention types (`roles`, `users`, `everyone`) to allow in Discord messages; defaults to an empty array to suppress mentions
    - `events`: subset of `join`, `leave`, `death`, `chat` to relay
      - `censorlist`: words to censor
    - `excludeBotFromCount`: omit the relay bot from the player count when `true`

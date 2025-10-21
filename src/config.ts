@@ -3,6 +3,7 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import type {
+  AllowedMentionType,
   Config,
   ConnectionRetryConfig,
   CubyzConnectionConfig,
@@ -23,10 +24,21 @@ const DEFAULT_CONNECTION: ConnectionRetryConfig = {
   maxRetries: 0,
   retryDelayMs: 30000,
 };
+const DEFAULT_ALLOWED_MENTIONS: AllowedMentionType[] = [];
 const DEFAULT_EXCLUDE_BOT_FROM_COUNT = true;
 const CONFIG_TEMPLATE_PATH = fileURLToPath(
   new URL("../config.example.json", import.meta.url),
 );
+
+const ALLOWED_MENTION_TYPES: AllowedMentionType[] = [
+  "roles",
+  "users",
+  "everyone",
+];
+
+const isAllowedMentionType = (value: unknown): value is AllowedMentionType =>
+  typeof value === "string" &&
+  ALLOWED_MENTION_TYPES.includes(value as AllowedMentionType);
 
 const isNotFoundError = (error: unknown): boolean =>
   typeof error === "object" &&
@@ -86,6 +98,14 @@ function applyDefaults(partial: Partial<Config>): Config {
     version: coerceString(partial.cubyz?.version, DEFAULT_CUBYZ.version),
   };
 
+  const allowedMentionsSource = Array.isArray(partial.discord?.allowedMentions)
+    ? partial.discord.allowedMentions
+    : DEFAULT_ALLOWED_MENTIONS;
+
+  const allowedMentions = Array.from(
+    new Set(allowedMentionsSource.filter(isAllowedMentionType)),
+  );
+
   const connection: ConnectionRetryConfig = {
     reconnect:
       typeof partial.connection?.reconnect === "boolean"
@@ -110,6 +130,7 @@ function applyDefaults(partial: Partial<Config>): Config {
     discord: {
       token: coerceString(partial.discord?.token, ""),
       channelId: coerceString(partial.discord?.channelId, ""),
+      allowedMentions,
     },
     events: events as EventType[],
     censorlist,
@@ -187,6 +208,22 @@ export function validateConfig(config: Config): void {
   ) {
     throw new Error(
       'Configuration error: "discord.channelId" must be provided.',
+    );
+  }
+
+  if (!Array.isArray(config.discord.allowedMentions)) {
+    throw new Error(
+      'Configuration error: "discord.allowedMentions" must be an array.',
+    );
+  }
+
+  const unsupportedAllowedMentions = config.discord.allowedMentions.filter(
+    (entry) => !ALLOWED_MENTION_TYPES.includes(entry),
+  );
+
+  if (unsupportedAllowedMentions.length > 0) {
+    throw new Error(
+      `Configuration error: "discord.allowedMentions" contains unsupported entries: ${unsupportedAllowedMentions.join(", ")}.`,
     );
   }
 

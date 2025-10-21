@@ -7,7 +7,8 @@
   },
   "discord": {
     "token": "YOUR_DISCORD_BOT_TOKEN",
-    "channelId": "YOUR_CHANNEL_ID"
+    "channelId": "YOUR_CHANNEL_ID",
+    "allowedMentions": []
   },
   "events": ["join", "leave", "death", "chat"],
   "censorlist": [],

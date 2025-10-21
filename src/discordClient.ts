@@ -4,6 +4,7 @@ import {
   GatewayIntentBits,
   type TextBasedChannel,
 } from "discord.js";
+import type { AllowedMentionType } from "./types.js";
 
 type SendableChannel = TextBasedChannel & {
   send: (content: string) => Promise<unknown>;
@@ -50,6 +51,7 @@ async function getChannel(channelId: string): Promise<SendableChannel> {
 
 export async function initializeDiscordClient(
   token: string,
+  allowedMentions: readonly AllowedMentionType[],
 ): Promise<Client<boolean>> {
   if (clientInstance) {
     return clientInstance;
@@ -61,6 +63,7 @@ export async function initializeDiscordClient(
       GatewayIntentBits.GuildMessages,
       GatewayIntentBits.MessageContent,
     ],
+    allowedMentions: { parse: [...allowedMentions] },
   });
 
   await clientInstance.login(token);
