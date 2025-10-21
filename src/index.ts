@@ -27,6 +27,7 @@ let bot: BotConnectionManager | null = null;
 let keypressHandler: ((str: string, key: Key) => void) | null = null;
 let rawModeEnabled = false;
 let isShuttingDown = false;
+let lastDisconnectionReason: string | null = null;
 
 function getConfigPath(): string {
   const [, , providedPath] = process.argv;
@@ -135,6 +136,10 @@ async function handleDisconnection(
   config: Config,
   { reason, attempts }: { reason: string; attempts?: number },
 ): Promise<void> {
+  if (lastDisconnectionReason === reason) {
+    return;
+  }
+  lastDisconnectionReason = reason;
   try {
     await updatePresence(0);
   } catch (error) {
@@ -262,6 +267,7 @@ async function main(): Promise<void> {
 
     bot.on("connected", async () => {
       console.log("Bot connected to Cubyz server.");
+      lastDisconnectionReason = null;
       try {
         await sendMessage(
           config.discord.channelId,
