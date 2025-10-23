@@ -64,8 +64,10 @@ npm install
    - `discord.channelId`: target channel ID
    - `discord.allowedMentions`: array of mention types (`roles`, `users`, `everyone`) to allow in Discord messages; defaults to an empty array to suppress mentions
    - `events`: subset of `join`, `leave`, `death`, `chat` to relay
-     - `censorlist`: words to censor
+   - `censorlist`: words to censor in chat messages
+   - `startupMessages`: array of messages to send to Cubyz server on each connection (e.g., login commands)
    - `excludeBotFromCount`: omit the relay bot from the player count when `true`
+   - `excludedUsernames`: array of usernames to exclude from the player count (case-insensitive)
    - `connection.reconnect`: enable/disable automatic reconnect attempts
    - `connection.maxRetries`: maximum reconnect attempts (`0` = infinite)
    - `connection.retryDelayMs`: initial delay before retrying (milliseconds)
@@ -86,7 +88,7 @@ During execution press `q` or `Ctrl+C` to exit gracefully.
 
 - **Bot not posting**: verify the Discord bot token, channel ID, and permissions
 - **Bot stuck reconnecting**: ensure the Cubyz server is reachable and the configured version/name are allowed
-- **Presence count wrong**: confirm `excludeBotFromCount` is set appropriately and the bot remains connected
+- **Presence count wrong**: confirm `excludeBotFromCount` and `excludedUsernames` are set appropriately and the bot remains connected
 - **No events forwarded**: check that the bot successfully joins the server (look for the "Bot connected" Discord message)
 
 ## Limitations

@@ -13,6 +13,7 @@ import type {
 const DEFAULT_EVENTS: EventType[] = ["join", "leave", "death", "chat"];
 const SUPPORTED_EVENTS: EventType[] = [...DEFAULT_EVENTS];
 const DEFAULT_CENSORLIST: string[] = [];
+const DEFAULT_EXCLUDED_USERNAMES: string[] = [];
 const DEFAULT_CUBYZ: CubyzConnectionConfig = {
   host: "127.0.0.1",
   port: 47649,
@@ -99,6 +100,15 @@ function applyDefaults(partial: Partial<Config>): Config {
         .filter((entry) => entry.length > 0)
     : [];
 
+  const excludedUsernamesSource = Array.isArray(partial.excludedUsernames)
+    ? partial.excludedUsernames
+    : DEFAULT_EXCLUDED_USERNAMES;
+
+  const excludedUsernames = excludedUsernamesSource
+    .filter((entry): entry is string => typeof entry === "string")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+
   const cubyz: CubyzConnectionConfig = {
     host: coerceString(partial.cubyz?.host, DEFAULT_CUBYZ.host),
     port: coercePort(partial.cubyz?.port, DEFAULT_CUBYZ.port),
@@ -153,6 +163,7 @@ function applyDefaults(partial: Partial<Config>): Config {
       typeof partial.excludeBotFromCount === "boolean"
         ? partial.excludeBotFromCount
         : DEFAULT_EXCLUDE_BOT_FROM_COUNT,
+    excludedUsernames,
   };
 }
 
@@ -214,7 +225,13 @@ export function validateConfig(config: Config): void {
   }
 
   // Validate optional logLevel if provided
-  const allowedLogLevels = ["error", "debug", "info", "warn", "silent"] as const;
+  const allowedLogLevels = [
+    "error",
+    "debug",
+    "info",
+    "warn",
+    "silent",
+  ] as const;
   if (
     typeof config.cubyz.logLevel !== "string" ||
     !(allowedLogLevels as readonly string[]).includes(config.cubyz.logLevel)
@@ -302,6 +319,22 @@ export function validateConfig(config: Config): void {
   if (typeof config.excludeBotFromCount !== "boolean") {
     throw new Error(
       'Configuration error: "excludeBotFromCount" must be a boolean value.',
+    );
+  }
+
+  if (!Array.isArray(config.excludedUsernames)) {
+    throw new Error(
+      'Configuration error: "excludedUsernames" must be an array of non-empty strings.',
+    );
+  }
+
+  const invalidExcludedUsernames = config.excludedUsernames.filter(
+    (entry) => typeof entry !== "string" || entry.trim().length === 0,
+  );
+
+  if (invalidExcludedUsernames.length > 0) {
+    throw new Error(
+      'Configuration error: "excludedUsernames" must contain only non-empty strings.',
     );
   }
 

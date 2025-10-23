@@ -15,6 +15,7 @@
   "censorlist": [],
   "startupMessages": [],
   "excludeBotFromCount": true,
+  "excludedUsernames": [],
   "connection": {
     "reconnect": true,
     "maxRetries": 0,

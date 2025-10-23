@@ -9,7 +9,7 @@ import {
   cleanup,
   initializeDiscordClient,
   sendMessage,
-  updatePresence,
+  updatePlayerCount as updateDiscordPresence,
 } from "./discordClient.js";
 import {
   cleanUsername,
@@ -126,7 +126,7 @@ async function relayMessage(
 
 async function updatePlayerCount(players: readonly string[]): Promise<void> {
   try {
-    await updatePresence(players.length);
+    await updateDiscordPresence(players.length);
   } catch (error) {
     console.error("Failed to update Discord presence:", error);
   }
@@ -137,7 +137,7 @@ async function handleDisconnection(
   { reason, attempts }: { reason: string; attempts?: number },
 ): Promise<void> {
   try {
-    await updatePresence(0);
+    await updateDiscordPresence(0);
   } catch (error) {
     console.error("Failed to update Discord presence:", error);
   }
@@ -248,7 +248,7 @@ async function main(): Promise<void> {
     console.log("Connected to Discord.");
 
     try {
-      await updatePresence(0);
+      await updateDiscordPresence(0);
     } catch (error) {
       console.error("Failed to set initial Discord presence:", error);
     }
@@ -257,6 +257,7 @@ async function main(): Promise<void> {
       config.cubyz,
       config.connection,
       config.excludeBotFromCount,
+      config.excludedUsernames,
     );
 
     setupDiscordChatRelay(discordClient, config);

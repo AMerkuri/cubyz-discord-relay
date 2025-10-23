@@ -28,6 +28,7 @@ export interface Config {
   events: EventType[];
   censorlist: string[];
   excludeBotFromCount: boolean;
+  excludedUsernames: string[];
 }
 
 export interface ChatMessage {

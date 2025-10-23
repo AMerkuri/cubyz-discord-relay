@@ -102,7 +102,7 @@ export async function cleanup(): Promise<void> {
   clientInstance = null;
 }
 
-export async function updatePresence(playerCount: number): Promise<void> {
+export async function updatePlayerCount(playerCount: number): Promise<void> {
   const client = ensureClient();
   const user = client.user;
 

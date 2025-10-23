@@ -50,15 +50,20 @@ export class BotConnectionManager extends EventEmitter {
   private retryAttempt = 0;
   private requestedStop = false;
   private readonly botNormalizedName: string;
+  private readonly excludedNormalizedNames: Set<string>;
 
   constructor(
     private readonly connectionConfig: CubyzConnectionConfig,
     private readonly retryConfig: ConnectionRetryConfig,
     private readonly excludeBotFromCount: boolean,
+    excludedUsernames: readonly string[],
   ) {
     super();
     this.botNormalizedName = toNormalized(
       cleanUsername(this.connectionConfig.botName),
+    );
+    this.excludedNormalizedNames = new Set(
+      excludedUsernames.map((name) => toNormalized(cleanUsername(name))),
     );
   }
 
@@ -146,7 +151,7 @@ export class BotConnectionManager extends EventEmitter {
       port: this.connectionConfig.port,
       name: this.connectionConfig.botName,
       version: this.connectionConfig.version,
-      logLevel: this.connectionConfig.logLevel
+      logLevel: this.connectionConfig.logLevel,
     };
     const connection = new CubyzConnection(options);
     this.connection = connection;
@@ -189,21 +194,26 @@ export class BotConnectionManager extends EventEmitter {
   };
 
   private readonly handlePlayers = (players: PlayersEvent): void => {
-    const cleanedPlayers = players
+    const normalizedPlayers = players
       .map((player) => cleanUsername(player.name))
       .filter(Boolean);
 
     if (this.excludeBotFromCount) {
-      const botIndex = cleanedPlayers.findIndex(
+      const botIndex = normalizedPlayers.findIndex(
         (name) => toNormalized(name) === this.botNormalizedName,
       );
       if (botIndex !== -1) {
-        cleanedPlayers.splice(botIndex, 1);
+        normalizedPlayers.splice(botIndex, 1);
       }
     }
 
+    // Filter out excluded usernames
+    const filteredPlayers = normalizedPlayers.filter(
+      (name) => !this.excludedNormalizedNames.has(toNormalized(name)),
+    );
+
     this.emit("players", {
-      players: cleanedPlayers,
+      players: filteredPlayers,
     });
   };
 
