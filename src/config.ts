@@ -28,6 +28,7 @@ const DEFAULT_CONNECTION: ConnectionRetryConfig = {
 };
 const DEFAULT_ALLOWED_MENTIONS: AllowedMentionType[] = [];
 const DEFAULT_EXCLUDE_BOT_FROM_COUNT = true;
+const DEFAULT_STARTUP_MESSAGE_DELAY = 0;
 const CONFIG_TEMPLATE_PATH = fileURLToPath(
   new URL("../config.example.json", import.meta.url),
 );
@@ -159,6 +160,11 @@ function applyDefaults(partial: Partial<Config>): Config {
     events: events as EventType[],
     censorlist,
     startupMessages,
+    startupMessageDelay:
+      typeof partial.startupMessageDelay === "number" &&
+      partial.startupMessageDelay >= 0
+        ? Math.floor(partial.startupMessageDelay)
+        : DEFAULT_STARTUP_MESSAGE_DELAY,
     excludeBotFromCount:
       typeof partial.excludeBotFromCount === "boolean"
         ? partial.excludeBotFromCount

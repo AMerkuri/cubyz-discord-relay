@@ -17,6 +17,7 @@ import {
   shouldRelayEvent,
 } from "./messageFormatter.js";
 import type { ChatMessage, Config } from "./types.js";
+import { delay } from "./utils.js";
 
 const DEFAULT_CONFIG_PATH = "config.json";
 const DEFAULT_CUBYZ_COLOR_RESET = "#FFFFFF";
@@ -268,6 +269,9 @@ async function main(): Promise<void> {
       const activeBot = bot;
       if (activeBot && config.startupMessages.length > 0) {
         for (const message of config.startupMessages) {
+          if (config.startupMessageDelay > 0) {
+            await delay(config.startupMessageDelay);
+          }
           try {
             // Relay configured startup messages into Cubyz once per connection.
             await activeBot.sendChat(message);

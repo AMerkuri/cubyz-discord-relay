@@ -25,6 +25,7 @@ export interface Config {
     allowedMentions: AllowedMentionType[];
   };
   startupMessages: string[];
+  startupMessageDelay: number;
   events: EventType[];
   censorlist: string[];
   excludeBotFromCount: boolean;

@@ -66,6 +66,7 @@ npm install
    - `events`: subset of `join`, `leave`, `death`, `chat` to relay
    - `censorlist`: words to censor in chat messages
    - `startupMessages`: array of messages to send to Cubyz server on each connection (e.g., login commands)
+   - `startupMessageDelay`: delay in milliseconds applied before each message in `startupMessages` (including the first); defaults to `0`
    - `excludeBotFromCount`: omit the relay bot from the player count when `true`
    - `excludedUsernames`: array of usernames to exclude from the player count (case-insensitive)
    - `connection.reconnect`: enable/disable automatic reconnect attempts
