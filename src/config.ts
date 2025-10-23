@@ -92,6 +92,13 @@ function applyDefaults(partial: Partial<Config>): Config {
     .map((entry) => entry.trim())
     .filter((entry) => entry.length > 0);
 
+  const startupMessages = Array.isArray(partial.startupMessages)
+    ? partial.startupMessages
+        .filter((entry): entry is string => typeof entry === "string")
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0)
+    : [];
+
   const cubyz: CubyzConnectionConfig = {
     host: coerceString(partial.cubyz?.host, DEFAULT_CUBYZ.host),
     port: coercePort(partial.cubyz?.port, DEFAULT_CUBYZ.port),
@@ -141,6 +148,7 @@ function applyDefaults(partial: Partial<Config>): Config {
     },
     events: events as EventType[],
     censorlist,
+    startupMessages,
     excludeBotFromCount:
       typeof partial.excludeBotFromCount === "boolean"
         ? partial.excludeBotFromCount
@@ -272,6 +280,22 @@ export function validateConfig(config: Config): void {
   if (invalidCensorlistEntries.length > 0) {
     throw new Error(
       'Configuration error: "censorlist" must contain only non-empty strings.',
+    );
+  }
+
+  if (!Array.isArray(config.startupMessages)) {
+    throw new Error(
+      'Configuration error: "startupMessages" must be an array of non-empty strings.',
+    );
+  }
+
+  const invalidStartupMessages = config.startupMessages.filter(
+    (entry) => typeof entry !== "string" || entry.trim().length === 0,
+  );
+
+  if (invalidStartupMessages.length > 0) {
+    throw new Error(
+      'Configuration error: "startupMessages" must contain only non-empty strings.',
     );
   }
 

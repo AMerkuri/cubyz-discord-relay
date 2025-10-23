@@ -264,6 +264,17 @@ async function main(): Promise<void> {
     bot.on("connected", async () => {
       console.log("Bot connected to Cubyz server.");
       hasActiveConnection = true;
+      const activeBot = bot;
+      if (activeBot && config.startupMessages.length > 0) {
+        for (const message of config.startupMessages) {
+          try {
+            // Relay configured startup messages into Cubyz once per connection.
+            await activeBot.sendChat(message);
+          } catch (error) {
+            console.error("Failed to send startup message to Cubyz:", error);
+          }
+        }
+      }
       try {
         await sendMessage(
           config.discord.channelId,

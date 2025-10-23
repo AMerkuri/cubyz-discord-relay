@@ -13,6 +13,7 @@
   },
   "events": ["join", "leave", "death", "chat"],
   "censorlist": [],
+  "startupMessages": [],
   "excludeBotFromCount": true,
   "connection": {
     "reconnect": true,

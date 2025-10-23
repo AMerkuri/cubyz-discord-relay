@@ -24,6 +24,7 @@ export interface Config {
     channelId: string;
     allowedMentions: AllowedMentionType[];
   };
+  startupMessages: string[];
   events: EventType[];
   censorlist: string[];
   excludeBotFromCount: boolean;
