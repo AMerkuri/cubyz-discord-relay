@@ -156,6 +156,14 @@ function applyDefaults(partial: Partial<Config>): Config {
       token: coerceString(partial.discord?.token, ""),
       channelId: coerceString(partial.discord?.channelId, ""),
       allowedMentions,
+      enableReactions:
+        typeof partial.discord?.enableReactions === "boolean"
+          ? partial.discord.enableReactions
+          : true,
+      enableReplies:
+        typeof partial.discord?.enableReplies === "boolean"
+          ? partial.discord.enableReplies
+          : true,
     },
     events: events as EventType[],
     censorlist,

@@ -10,6 +10,7 @@ CLI tool that relays [Cubyz](https://github.com/PixelGuys/Cubyz) game server cha
 - Connects to the Cubyz server using game protocol over UDP as a bot player
 - Relays join, leave, death, and chat events to Discord with presence updates
 - Forwards Discord channel messages back into Cubyz, keeping role colors in-game
+- Supports Discord message replies with context and emoji reactions relayed back to the server
 - Cleans Cubyz markdown-style usernames and censors configurable words
 - Automatic reconnection with exponential backoff and retry limits
 
@@ -63,6 +64,8 @@ npm install
    - `discord.token`: Discord bot token
    - `discord.channelId`: target channel ID
    - `discord.allowedMentions`: array of mention types (`roles`, `users`, `everyone`) to allow in Discord messages; defaults to an empty array to suppress mentions
+   - `discord.enableReactions`: enable/disable relaying Discord reactions back to Cubyz; defaults to `true`
+   - `discord.enableReplies`: enable/disable relaying Discord message replies with context back to Cubyz; defaults to `true`
    - `events`: subset of `join`, `leave`, `death`, `chat` to relay
    - `censorlist`: words to censor in chat messages
    - `startupMessages`: array of messages to send to Cubyz server on each connection (e.g., login commands)

@@ -21,6 +21,16 @@ import { delay } from "./utils.js";
 
 const DEFAULT_CONFIG_PATH = "config.json";
 const DEFAULT_CUBYZ_COLOR_RESET = "#FFFFFF";
+const MESSAGE_CACHE_TTL_MS = 3600000; // 1 hour
+
+interface CachedMessage {
+  rawUsername: string;
+  username: string;
+  content: string;
+  timestamp: number;
+}
+
+const messageCache = new Map<string, CachedMessage>();
 
 let botNormalizedName = "";
 
@@ -37,6 +47,15 @@ function getConfigPath(): string {
 
 const collapseWhitespace = (input: string): string =>
   input.replace(/\s+/g, " ").trim();
+
+function cleanMessageCache(): void {
+  const now = Date.now();
+  for (const [id, entry] of messageCache.entries()) {
+    if (now - entry.timestamp > MESSAGE_CACHE_TTL_MS) {
+      messageCache.delete(id);
+    }
+  }
+}
 
 const resolveDiscordDisplayName = (message: Message): string => {
   const preferred =
@@ -67,7 +86,7 @@ const resolveDiscordHexColor = (message: Message): string | null => {
 };
 
 function setupDiscordChatRelay(client: Client<boolean>, config: Config): void {
-  client.on("messageCreate", (message) => {
+  client.on("messageCreate", async (message) => {
     if (message.channelId !== config.discord.channelId) {
       return;
     }
@@ -90,14 +109,99 @@ function setupDiscordChatRelay(client: Client<boolean>, config: Config): void {
 
     const name = resolveDiscordDisplayName(message);
     const color = resolveDiscordHexColor(message);
-    const payload =
+
+    let payload =
       color && color !== "#FFFFFF"
         ? `${color}${name}${DEFAULT_CUBYZ_COLOR_RESET}: ${normalizedContent}`
         : `${name}: ${normalizedContent}`;
 
-    bot.sendChat(payload).catch((error) => {
+    if (config.discord.enableReplies && message.reference?.messageId) {
+      const referencedMsg = messageCache.get(message.reference.messageId);
+      if (referencedMsg) {
+        // Format: [Name] replying to [OriginalUser]: [OriginalMessage] - [ReplyMessage]
+        const replyPrefix = `replying to ${referencedMsg.rawUsername}: *"${referencedMsg.content}"*`;
+        const fullMessage = `${replyPrefix} - ${normalizedContent}`;
+        payload =
+          color && color !== "#FFFFFF"
+            ? `${color}${name}${DEFAULT_CUBYZ_COLOR_RESET}: ${fullMessage}`
+            : `${name}: ${fullMessage}`;
+      }
+    }
+
+    try {
+      await bot.sendChat(payload);
+    } catch (error) {
       console.error("Failed to relay Discord message to Cubyz:", error);
-    });
+    }
+  });
+
+  client.on("messageReactionAdd", async (reaction, user) => {
+    if (!config.discord.enableReactions) {
+      return;
+    }
+
+    if (reaction.partial) {
+      try {
+        await reaction.fetch();
+      } catch (error) {
+        console.error("Failed to fetch reaction:", error);
+        return;
+      }
+    }
+
+    if (reaction.message.channelId !== config.discord.channelId) {
+      return;
+    }
+
+    if (user.bot) {
+      return;
+    }
+
+    if (!bot) {
+      console.warn(
+        "Received Discord reaction before Cubyz connection was ready.",
+      );
+      return;
+    }
+
+    const guild = reaction.message.guild;
+    const member = guild
+      ? await guild.members.fetch(user.id).catch(() => null)
+      : null;
+
+    let nameToClean: string;
+    if (member?.displayName) {
+      nameToClean = member.displayName;
+    } else if (user.globalName) {
+      nameToClean = user.globalName;
+    } else {
+      nameToClean = user.username ?? `User${user.id.slice(-4)}`;
+    }
+
+    const reactorName = cleanUsername(nameToClean);
+
+    if (reactorName.length === 0) {
+      return;
+    }
+
+    const emoji = reaction.emoji.name ?? "?";
+
+    const referencedMsg = messageCache.get(reaction.message.id);
+
+    let payload: string;
+    if (referencedMsg) {
+      // Format: [Name] reacted to [OriginalUser]: [OriginalMessage] with [emoji]
+      payload = `${reactorName} reacted to ${referencedMsg.rawUsername}: *"${referencedMsg.content}"* with ${emoji}`;
+    } else {
+      // If message not in cache, just show the reaction without context
+      payload = `${reactorName} reacted with ${emoji}`;
+    }
+
+    try {
+      await bot.sendChat(payload);
+    } catch (error) {
+      console.error("Failed to relay Discord reaction to Cubyz:", error);
+    }
   });
 }
 
@@ -119,7 +223,20 @@ async function relayMessage(
 
   const payload = formatMessage(chatMessage, config);
   try {
-    await sendMessage(config.discord.channelId, payload);
+    const sentMessage = await sendMessage(config.discord.channelId, payload);
+
+    if (chatMessage.type === "chat" && chatMessage.message) {
+      messageCache.set(sentMessage.id, {
+        rawUsername: chatMessage.rawUsername,
+        username: chatMessage.username,
+        content: chatMessage.message,
+        timestamp: Date.now(),
+      });
+
+      if (messageCache.size % 50 === 0) {
+        cleanMessageCache();
+      }
+    }
   } catch (error) {
     console.error("Failed to send message to Discord:", error);
   }
@@ -273,7 +390,6 @@ async function main(): Promise<void> {
             await delay(config.startupMessageDelay);
           }
           try {
-            // Relay configured startup messages into Cubyz once per connection.
             await activeBot.sendChat(message);
           } catch (error) {
             console.error("Failed to send startup message to Cubyz:", error);

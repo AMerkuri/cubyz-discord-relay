@@ -2,12 +2,13 @@ import {
   ActivityType,
   Client,
   GatewayIntentBits,
+  type Message,
   type TextBasedChannel,
 } from "discord.js";
 import type { AllowedMentionType } from "./types.js";
 
 type SendableChannel = TextBasedChannel & {
-  send: (content: string) => Promise<unknown>;
+  send: (content: string) => Promise<Message>;
 };
 
 const channelCache = new Map<string, SendableChannel>();
@@ -62,8 +63,10 @@ export async function initializeDiscordClient(
       GatewayIntentBits.Guilds,
       GatewayIntentBits.GuildMessages,
       GatewayIntentBits.MessageContent,
+      GatewayIntentBits.GuildMessageReactions,
     ],
     allowedMentions: { parse: [...allowedMentions] },
+    partials: [],
   });
 
   await clientInstance.login(token);
@@ -73,14 +76,14 @@ export async function initializeDiscordClient(
 export async function sendMessage(
   channelId: string,
   message: string,
-): Promise<void> {
+): Promise<Message> {
   const channel = await getChannel(channelId);
 
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      await channel.send(message);
-      return;
+      const sentMessage = await channel.send(message);
+      return sentMessage;
     } catch (error) {
       if (attempt === maxAttempts) {
         throw error;
@@ -90,6 +93,8 @@ export async function sendMessage(
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
+
+  throw new Error("Failed to send message after all retry attempts");
 }
 
 export async function cleanup(): Promise<void> {

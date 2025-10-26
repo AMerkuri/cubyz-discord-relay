@@ -23,6 +23,8 @@ export interface Config {
     token: string;
     channelId: string;
     allowedMentions: AllowedMentionType[];
+    enableReactions: boolean;
+    enableReplies: boolean;
   };
   startupMessages: string[];
   startupMessageDelay: number;
