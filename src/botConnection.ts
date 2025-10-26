@@ -182,7 +182,7 @@ export class BotConnectionManager extends EventEmitter {
   };
 
   private readonly handleChat = (message: string): void => {
-    const trimmed = message.trim();
+    const trimmed = message.trim().replace(/(?:\r\n|\r|\n){2,}/g, "\n");
     if (trimmed.length === 0) {
       return;
     }
