@@ -1,6 +1,6 @@
 {
   "name": "cubyz-discord-relay",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Bot that relays messages between a Cubyz server and a Discord channel.",
   "type": "module",
   "main": "dist/index.js",
