@@ -19,7 +19,7 @@ export interface ConnectionRetryConfig {
 
 export interface CubyzListSiteConfig {
   enabled: boolean;
-  serverId: string;
+  serverName: string;
   serverIp: string;
   serverPort: number;
   iconUrl?: string;

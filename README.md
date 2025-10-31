@@ -1,6 +1,6 @@
 # Cubyz Discord Relay
 
-CLI tool that relays [Cubyz](https://github.com/PixelGuys/Cubyz) game server chat events to Discord and forwards Discord chat back to the server.
+`cubyz-discord-relay` is an application that relays [Cubyz](https://github.com/PixelGuys/Cubyz) game server chat events to Discord and forwards Discord chat back to the server.
 
 ![Cubyz Discord Relay](https://raw.githubusercontent.com/AMerkuri/cubyz-discord-relay/refs/heads/master/assets/discord.png)  
 ![Cubyz Server](https://raw.githubusercontent.com/AMerkuri/cubyz-discord-relay/refs/heads/master/assets/cubyz.png)
@@ -13,6 +13,7 @@ CLI tool that relays [Cubyz](https://github.com/PixelGuys/Cubyz) game server cha
 - Supports Discord message replies with context and emoji reactions relayed back to the server
 - Cleans Cubyz markdown-style usernames and censors configurable words
 - Automatic reconnection with exponential backoff and retry limits
+- Optional integration advertises your server on [cubyzlist.site](https://cubyzlist.site)
 
 ## Prerequisites
 
@@ -56,8 +57,9 @@ npm install
 
 ### Configuration
 
-1. Copy `config.example.json` to `config.json` (or run the CLI once to generate it automatically).
+1. Copy `config.example.json` to `config.json` (or run the application once to generate it automatically).
 2. Update the sections:
+   - `logLevel`: global log verbosity for the relay (`error`, `debug`, `info`, `warn`, `silent`)
    - `cubyz.host` / `cubyz.port`: address of the Cubyz UDP server
    - `cubyz.botName`: in-game name the relay uses when joining the server
    - `cubyz.version`: client version string to present during the Cubyz handshake
@@ -75,8 +77,14 @@ npm install
    - `connection.reconnect`: enable/disable automatic reconnect attempts
    - `connection.maxRetries`: maximum reconnect attempts (`0` = infinite)
    - `connection.retryDelayMs`: initial delay before retrying (milliseconds)
+   - `integration.cubyzlistSite.enabled`: toggle advertising to the community server list
+   - `integration.cubyzlistSite.serverName`: required display name shown on cubyzlist.site, must be unique
+   - `integration.cubyzlistSite.serverIp`: public hostname or IP that players should connect to
+   - `integration.cubyzlistSite.serverPort`: public port exposed for players (defaults to `47649` if omitted)
+   - `integration.cubyzlistSite.iconUrl`: optional URL for the list thumbnail
+   - `integration.cubyzlistSite.customClientDownloadUrl`: optional link to a custom client build
 
-> First run convenience: if `config.json` is missing, the CLI writes a fresh template in your working directory and exits so you can fill it in before retrying.
+> First run convenience: if `config.json` is missing, the application writes a fresh template in your working directory and exits so you can fill it in before retrying.
 
 ### Usage
 

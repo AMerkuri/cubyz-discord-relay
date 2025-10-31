@@ -28,7 +28,7 @@
   "integration": {
     "cubyzlistSite": {
       "enabled": false,
-      "serverId": "your-server-id",
+      "serverName": "My Cubyz Server",
       "serverIp": "play.yourserver.com",
       "serverPort": 47649,
       "iconUrl": "https://github.com/PixelGuys/Cubyz/blob/master/assets/cubyz/logo.png?raw=true",

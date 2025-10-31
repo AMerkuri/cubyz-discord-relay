@@ -209,14 +209,13 @@ async function main(): Promise<void> {
     await bot.start();
   } catch (error) {
     if (error instanceof ConfigTemplateCreatedError) {
-      log("warn", error.message);
-      log(
-        "warn",
+      console.warn(error.message);
+      console.warn(
         "Update the generated config file and run the command again.",
       );
       process.exitCode = 1;
     } else {
-      log("error", "Fatal error:", error);
+      console.error("Fatal error:", error);
       process.exitCode = 1;
     }
     await shutdown();

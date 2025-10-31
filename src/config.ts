@@ -41,7 +41,7 @@ const ALLOWED_LOG_LEVELS: readonly LogLevel[] = [
 ];
 const DEFAULT_CUBYZLIST_SITE: CubyzListSiteConfig = {
   enabled: false,
-  serverId: crypto.randomUUID(),
+  serverName: "",
   serverIp: "",
   serverPort: 47649,
   iconUrl: undefined,
@@ -72,7 +72,7 @@ export class ConfigTemplateCreatedError extends Error {
 
   constructor(configPath: string) {
     super(
-      `Configuration file not found. A template has been created at ${configPath}. Update it and rerun the cli.`,
+      `Configuration file not found. A template has been created at ${configPath}. Update it and rerun the application.`,
     );
     this.name = "ConfigTemplateCreatedError";
     this.configPath = configPath;
@@ -166,9 +166,9 @@ function applyDefaults(partial: Partial<Config>): Config {
       typeof partial.integration?.cubyzlistSite?.enabled === "boolean"
         ? partial.integration.cubyzlistSite.enabled
         : DEFAULT_CUBYZLIST_SITE.enabled,
-    serverId: coerceString(
-      partial.integration?.cubyzlistSite?.serverId,
-      DEFAULT_CUBYZLIST_SITE.serverId,
+    serverName: coerceString(
+      partial.integration?.cubyzlistSite?.serverName,
+      DEFAULT_CUBYZLIST_SITE.serverName,
     ),
     serverIp: coerceString(
       partial.integration?.cubyzlistSite?.serverIp,
@@ -463,9 +463,12 @@ export function validateConfig(config: Config): void {
 
   // Only validate required fields if enabled
   if (cubyzlist.enabled) {
-    if (typeof cubyzlist.serverId !== "string" || cubyzlist.serverId === "") {
+    if (
+      typeof cubyzlist.serverName !== "string" ||
+      cubyzlist.serverName === ""
+    ) {
       throw new Error(
-        'Configuration error: "integration.cubyzlistSite.serverId" must be a non-empty string when enabled.',
+        'Configuration error: "integration.cubyzlistSite.serverName" must be a non-empty string when enabled.',
       );
     }
 

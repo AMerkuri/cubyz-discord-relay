@@ -118,7 +118,7 @@ export class CubyzListSiteIntegration implements BaseIntegration {
     }
 
     const payload = {
-      server_id: this.config.serverId,
+      server_id: this.config.serverName,
       player_count: this.currentPlayers.size,
       status: this.currentStatus,
       gamemode: this.gamemode,
