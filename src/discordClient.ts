@@ -5,7 +5,8 @@ import {
   type Message,
   type TextBasedChannel,
 } from "discord.js";
-import type { AllowedMentionType } from "./types.js";
+import { createLogger, type Logger } from "./logger.js";
+import type { AllowedMentionType, LogLevel } from "./types.js";
 
 type SendableChannel = TextBasedChannel & {
   send: (content: string) => Promise<Message>;
@@ -13,6 +14,11 @@ type SendableChannel = TextBasedChannel & {
 
 const channelCache = new Map<string, SendableChannel>();
 let clientInstance: Client<boolean> | null = null;
+let logger: Logger;
+
+function log(level: LogLevel, ...args: unknown[]): void {
+  logger(level, "[DiscordClient]", ...args);
+}
 
 function ensureClient(): Client<boolean> {
   if (!clientInstance) {
@@ -53,11 +59,13 @@ async function getChannel(channelId: string): Promise<SendableChannel> {
 export async function initializeDiscordClient(
   token: string,
   allowedMentions: readonly AllowedMentionType[],
+  logLevel: LogLevel,
 ): Promise<Client<boolean>> {
   if (clientInstance) {
     return clientInstance;
   }
 
+  logger = createLogger(logLevel);
   clientInstance = new Client({
     intents: [
       GatewayIntentBits.Guilds,
@@ -112,7 +120,7 @@ export async function updatePlayerCount(playerCount: number): Promise<void> {
   const user = client.user;
 
   if (!user) {
-    console.warn("Discord client is not ready to update presence yet.");
+    log("warn", "Discord client is not ready to update presence yet.");
     return;
   }
 

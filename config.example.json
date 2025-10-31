@@ -1,12 +1,13 @@
 {
+  "logLevel": "info",
   "cubyz": {
     "host": "127.0.0.1",
     "port": 47649,
     "botName": "Discord",
-    "version": "0.0.0",
-    "logLevel": "info"
+    "version": "0.0.0"
   },
   "discord": {
+    "enabled": true,
     "token": "YOUR_DISCORD_BOT_TOKEN",
     "channelId": "YOUR_CHANNEL_ID",
     "allowedMentions": [],
@@ -23,5 +24,15 @@
     "reconnect": true,
     "maxRetries": 0,
     "retryDelayMs": 30000
+  },
+  "integration": {
+    "cubyzlistSite": {
+      "enabled": false,
+      "serverId": "your-server-id",
+      "serverIp": "play.yourserver.com",
+      "serverPort": 47649,
+      "iconUrl": "https://github.com/PixelGuys/Cubyz/blob/master/assets/cubyz/logo.png?raw=true",
+      "customClientDownloadUrl": "https://github.com/PixelGuys/Cubyz/releases/tag/0.0.0"
+    }
   }
 }

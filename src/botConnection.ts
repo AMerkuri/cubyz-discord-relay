@@ -4,13 +4,19 @@ import type {
   DisconnectEvent,
 } from "cubyz-node-client";
 import { CubyzConnection } from "cubyz-node-client";
-import type { PlayersEvent } from "cubyz-node-client/dist/connection.js";
+import type {
+  Gamemode,
+  GenericUpdate,
+  PlayersEvent,
+} from "cubyz-node-client/dist/connection.js";
 import { parseChatMessage } from "./chatParser.js";
+import { createLogger, type Logger } from "./logger.js";
 import { cleanUsername } from "./messageFormatter.js";
 import type {
   ChatMessage,
   ConnectionRetryConfig,
   CubyzConnectionConfig,
+  LogLevel,
 } from "./types.js";
 
 type DisconnectReason = "server" | "stopped" | "retries-exhausted" | "error";
@@ -37,6 +43,7 @@ type BotConnectionEvents = {
   error: [unknown];
   chat: [ChatMessage];
   players: [PlayersPayload];
+  gamemode: [Gamemode];
 };
 
 type ConnectionState = "stopped" | "connecting" | "connected";
@@ -51,10 +58,12 @@ export class BotConnectionManager extends EventEmitter {
   private requestedStop = false;
   private readonly botNormalizedName: string;
   private readonly excludedNormalizedNames: Set<string>;
+  private readonly log: Logger;
 
   constructor(
     private readonly connectionConfig: CubyzConnectionConfig,
     private readonly retryConfig: ConnectionRetryConfig,
+    private readonly logLevel: LogLevel,
     private readonly excludeBotFromCount: boolean,
     excludedUsernames: readonly string[],
   ) {
@@ -65,6 +74,7 @@ export class BotConnectionManager extends EventEmitter {
     this.excludedNormalizedNames = new Set(
       excludedUsernames.map((name) => toNormalized(cleanUsername(name))),
     );
+    this.log = createLogger(logLevel);
   }
 
   on<K extends keyof BotConnectionEvents>(
@@ -151,7 +161,7 @@ export class BotConnectionManager extends EventEmitter {
       port: this.connectionConfig.port,
       name: this.connectionConfig.botName,
       version: this.connectionConfig.version,
-      logLevel: this.connectionConfig.logLevel,
+      logLevel: this.logLevel,
     };
     const connection = new CubyzConnection(options);
     this.connection = connection;
@@ -160,7 +170,7 @@ export class BotConnectionManager extends EventEmitter {
   }
 
   private handleConnectionFailure(error: unknown): void {
-    console.error("Bot failed to connect:", error);
+    this.log("error", "Bot failed to connect:", error);
     this.emit("error", error);
     this.cleanupConnection();
     this.state = "connecting";
@@ -175,7 +185,8 @@ export class BotConnectionManager extends EventEmitter {
   private readonly handleConnected = (): void => {
     this.state = "connected";
     this.retryAttempt = 0;
-    console.log(
+    this.log(
+      "debug",
       `Connected to ${this.connectionConfig.host}:${this.connectionConfig.port}`,
     );
     this.emit("connected");
@@ -218,7 +229,7 @@ export class BotConnectionManager extends EventEmitter {
   };
 
   private readonly handleDisconnect = (event: DisconnectEvent): void => {
-    console.warn("Disconnected from server:", event.reason);
+    this.log("warn", "Disconnected from server:", event.reason);
     this.cleanupConnection();
     if (this.requestedStop) {
       this.state = "stopped";
@@ -233,11 +244,18 @@ export class BotConnectionManager extends EventEmitter {
     this.scheduleReconnect();
   };
 
+  private readonly handleGenericUpdate = (update: GenericUpdate): void => {
+    if (update.type === "gamemode") {
+      this.emit("gamemode", update.gamemode);
+    }
+  };
+
   private attachListeners(connection: CubyzConnection): void {
     connection.on("connected", this.handleConnected);
     connection.on("chat", this.handleChat);
     connection.on("players", this.handlePlayers);
     connection.on("disconnect", this.handleDisconnect);
+    connection.on("genericUpdate", this.handleGenericUpdate);
   }
 
   private detachListeners(connection: CubyzConnection): void {
@@ -268,7 +286,8 @@ export class BotConnectionManager extends EventEmitter {
     const maxRetries =
       this.retryConfig.maxRetries > 0 ? this.retryConfig.maxRetries : null;
     if (maxRetries !== null && this.retryAttempt > maxRetries) {
-      console.error(
+      this.log(
+        "error",
         `Failed to reconnect after ${this.retryAttempt - 1} attempts`,
       );
       this.emit("disconnected", {

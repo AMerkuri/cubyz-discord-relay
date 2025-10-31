@@ -2,12 +2,13 @@ export type EventType = "join" | "leave" | "death" | "chat";
 
 export type AllowedMentionType = "roles" | "users" | "everyone";
 
+export type LogLevel = "error" | "debug" | "info" | "warn" | "silent";
+
 export interface CubyzConnectionConfig {
   host: string;
   port: number;
   botName: string;
   version: string;
-  logLevel?: "error" | "debug" | "info" | "warn" | "silent";
 }
 
 export interface ConnectionRetryConfig {
@@ -16,10 +17,25 @@ export interface ConnectionRetryConfig {
   retryDelayMs: number;
 }
 
+export interface CubyzListSiteConfig {
+  enabled: boolean;
+  serverId: string;
+  serverIp: string;
+  serverPort: number;
+  iconUrl?: string;
+  customClientDownloadUrl?: string;
+}
+
+export interface IntegrationConfig {
+  cubyzlistSite: CubyzListSiteConfig;
+}
+
 export interface Config {
+  logLevel: LogLevel;
   cubyz: CubyzConnectionConfig;
   connection: ConnectionRetryConfig;
   discord: {
+    enabled: boolean;
     token: string;
     channelId: string;
     allowedMentions: AllowedMentionType[];
@@ -32,6 +48,7 @@ export interface Config {
   censorlist: string[];
   excludeBotFromCount: boolean;
   excludedUsernames: string[];
+  integration: IntegrationConfig;
 }
 
 export interface ChatMessage {

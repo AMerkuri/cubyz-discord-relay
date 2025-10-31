@@ -7,7 +7,10 @@ import type {
   Config,
   ConnectionRetryConfig,
   CubyzConnectionConfig,
+  CubyzListSiteConfig,
   EventType,
+  IntegrationConfig,
+  LogLevel,
 } from "./types.js";
 
 const DEFAULT_EVENTS: EventType[] = ["join", "leave", "death", "chat"];
@@ -19,7 +22,6 @@ const DEFAULT_CUBYZ: CubyzConnectionConfig = {
   port: 47649,
   botName: "Discord",
   version: "0.0.0",
-  logLevel: "info",
 };
 const DEFAULT_CONNECTION: ConnectionRetryConfig = {
   reconnect: true,
@@ -29,6 +31,22 @@ const DEFAULT_CONNECTION: ConnectionRetryConfig = {
 const DEFAULT_ALLOWED_MENTIONS: AllowedMentionType[] = [];
 const DEFAULT_EXCLUDE_BOT_FROM_COUNT = true;
 const DEFAULT_STARTUP_MESSAGE_DELAY = 0;
+const DEFAULT_LOG_LEVEL: LogLevel = "info";
+const ALLOWED_LOG_LEVELS: readonly LogLevel[] = [
+  "error",
+  "debug",
+  "info",
+  "warn",
+  "silent",
+];
+const DEFAULT_CUBYZLIST_SITE: CubyzListSiteConfig = {
+  enabled: false,
+  serverId: crypto.randomUUID(),
+  serverIp: "",
+  serverPort: 47649,
+  iconUrl: undefined,
+  customClientDownloadUrl: undefined,
+};
 const CONFIG_TEMPLATE_PATH = fileURLToPath(
   new URL("../config.example.json", import.meta.url),
 );
@@ -115,12 +133,6 @@ function applyDefaults(partial: Partial<Config>): Config {
     port: coercePort(partial.cubyz?.port, DEFAULT_CUBYZ.port),
     botName: coerceString(partial.cubyz?.botName, DEFAULT_CUBYZ.botName),
     version: coerceString(partial.cubyz?.version, DEFAULT_CUBYZ.version),
-    logLevel: (() => {
-      const v = partial.cubyz?.logLevel;
-      return typeof v === "string" && v.trim().length > 0
-        ? (v.trim() as CubyzConnectionConfig["logLevel"])
-        : DEFAULT_CUBYZ.logLevel;
-    })(),
   };
 
   const allowedMentionsSource = Array.isArray(partial.discord?.allowedMentions)
@@ -149,10 +161,59 @@ function applyDefaults(partial: Partial<Config>): Config {
         : DEFAULT_CONNECTION.retryDelayMs,
   };
 
+  const cubyzlistSite: CubyzListSiteConfig = {
+    enabled:
+      typeof partial.integration?.cubyzlistSite?.enabled === "boolean"
+        ? partial.integration.cubyzlistSite.enabled
+        : DEFAULT_CUBYZLIST_SITE.enabled,
+    serverId: coerceString(
+      partial.integration?.cubyzlistSite?.serverId,
+      DEFAULT_CUBYZLIST_SITE.serverId,
+    ),
+    serverIp: coerceString(
+      partial.integration?.cubyzlistSite?.serverIp,
+      DEFAULT_CUBYZLIST_SITE.serverIp,
+    ),
+    serverPort: coercePort(
+      partial.integration?.cubyzlistSite?.serverPort,
+      DEFAULT_CUBYZLIST_SITE.serverPort,
+    ),
+    iconUrl:
+      coerceString(
+        partial.integration?.cubyzlistSite?.iconUrl,
+        DEFAULT_CUBYZLIST_SITE.iconUrl ?? "",
+      ) || undefined,
+    customClientDownloadUrl:
+      coerceString(
+        partial.integration?.cubyzlistSite?.customClientDownloadUrl,
+        DEFAULT_CUBYZLIST_SITE.customClientDownloadUrl ?? "",
+      ) || undefined,
+  };
+
+  const integration: IntegrationConfig = {
+    cubyzlistSite,
+  };
+
+  const logLevel = (() => {
+    if (typeof partial.logLevel !== "string") {
+      return DEFAULT_LOG_LEVEL;
+    }
+
+    const normalized = partial.logLevel.trim().toLowerCase();
+    return (ALLOWED_LOG_LEVELS as readonly string[]).includes(normalized)
+      ? (normalized as LogLevel)
+      : DEFAULT_LOG_LEVEL;
+  })();
+
   return {
+    logLevel,
     cubyz,
     connection,
     discord: {
+      enabled:
+        typeof partial.discord?.enabled === "boolean"
+          ? partial.discord.enabled
+          : true,
       token: coerceString(partial.discord?.token, ""),
       channelId: coerceString(partial.discord?.channelId, ""),
       allowedMentions,
@@ -178,6 +239,7 @@ function applyDefaults(partial: Partial<Config>): Config {
         ? partial.excludeBotFromCount
         : DEFAULT_EXCLUDE_BOT_FROM_COUNT,
     excludedUsernames,
+    integration,
   };
 }
 
@@ -238,34 +300,34 @@ export function validateConfig(config: Config): void {
     );
   }
 
-  // Validate optional logLevel if provided
-  const allowedLogLevels = [
-    "error",
-    "debug",
-    "info",
-    "warn",
-    "silent",
-  ] as const;
   if (
-    typeof config.cubyz.logLevel !== "string" ||
-    !(allowedLogLevels as readonly string[]).includes(config.cubyz.logLevel)
+    typeof config.logLevel !== "string" ||
+    !(ALLOWED_LOG_LEVELS as readonly string[]).includes(config.logLevel)
   ) {
     throw new Error(
-      `Configuration error: "cubyz.logLevel" must be one of: ${allowedLogLevels.join(", ")}.`,
+      `Configuration error: "logLevel" must be one of: ${ALLOWED_LOG_LEVELS.join(", ")}.`,
     );
   }
 
-  if (!config.discord?.token || typeof config.discord.token !== "string") {
-    throw new Error('Configuration error: "discord.token" must be provided.');
+  if (typeof !config.discord?.enabled !== "boolean") {
+    throw new Error(
+      'Configuration error: "discord.enabled" must be a boolean.',
+    );
   }
 
-  if (
-    !config.discord?.channelId ||
-    typeof config.discord.channelId !== "string"
-  ) {
-    throw new Error(
-      'Configuration error: "discord.channelId" must be provided.',
-    );
+  if (config.discord?.enabled) {
+    if (!config.discord.token || typeof config.discord.token !== "string") {
+      throw new Error('Configuration error: "discord.token" must be provided.');
+    }
+
+    if (
+      !config.discord.channelId ||
+      typeof config.discord.channelId !== "string"
+    ) {
+      throw new Error(
+        'Configuration error: "discord.channelId" must be provided.',
+      );
+    }
   }
 
   if (!Array.isArray(config.discord.allowedMentions)) {
@@ -375,6 +437,73 @@ export function validateConfig(config: Config): void {
     throw new Error(
       'Configuration error: "connection.retryDelayMs" must be a non-negative number.',
     );
+  }
+
+  // Validate integration section
+  if (!config.integration || typeof config.integration !== "object") {
+    throw new Error('Configuration error: "integration" section is required.');
+  }
+
+  if (
+    !config.integration.cubyzlistSite ||
+    typeof config.integration.cubyzlistSite !== "object"
+  ) {
+    throw new Error(
+      'Configuration error: "integration.cubyzlistSite" section is required.',
+    );
+  }
+
+  const cubyzlist = config.integration.cubyzlistSite;
+
+  if (typeof cubyzlist.enabled !== "boolean") {
+    throw new Error(
+      'Configuration error: "integration.cubyzlistSite.enabled" must be a boolean.',
+    );
+  }
+
+  // Only validate required fields if enabled
+  if (cubyzlist.enabled) {
+    if (typeof cubyzlist.serverId !== "string" || cubyzlist.serverId === "") {
+      throw new Error(
+        'Configuration error: "integration.cubyzlistSite.serverId" must be a non-empty string when enabled.',
+      );
+    }
+
+    if (typeof cubyzlist.serverIp !== "string" || cubyzlist.serverIp === "") {
+      throw new Error(
+        'Configuration error: "integration.cubyzlistSite.serverIp" must be a non-empty string when enabled.',
+      );
+    }
+
+    if (
+      typeof cubyzlist.serverPort !== "number" ||
+      !Number.isInteger(cubyzlist.serverPort) ||
+      cubyzlist.serverPort <= 0 ||
+      cubyzlist.serverPort > 65535
+    ) {
+      throw new Error(
+        'Configuration error: "integration.cubyzlistSite.serverPort" must be an integer between 1 and 65535.',
+      );
+    }
+
+    if (
+      cubyzlist.iconUrl !== undefined &&
+      (typeof cubyzlist.iconUrl !== "string" || cubyzlist.iconUrl === "")
+    ) {
+      throw new Error(
+        'Configuration error: "integration.cubyzlistSite.iconUrl" must be a non-empty string or undefined.',
+      );
+    }
+
+    if (
+      cubyzlist.customClientDownloadUrl !== undefined &&
+      (typeof cubyzlist.customClientDownloadUrl !== "string" ||
+        cubyzlist.customClientDownloadUrl === "")
+    ) {
+      throw new Error(
+        'Configuration error: "integration.cubyzlistSite.customClientDownloadUrl" must be a non-empty string or undefined.',
+      );
+    }
   }
 }
 

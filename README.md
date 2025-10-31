@@ -81,7 +81,7 @@ npm install
 ### Usage
 
 ```bash
-npm run dev            # Run directly with tsx (recompiles on change)
+npm run dev            # Compile and run with tsx
 npm run build          # Compile TypeScript to dist/
 npm start              # Run compiled output (after build)
 ```
