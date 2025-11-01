@@ -63,6 +63,7 @@ npm install
    - `cubyz.host` / `cubyz.port`: address of the Cubyz UDP server
    - `cubyz.botName`: in-game name the relay uses when joining the server
    - `cubyz.version`: client version string to present during the Cubyz handshake
+   - `discord.enabled`: enable/disable Discord relay functionality
    - `discord.token`: Discord bot token
    - `discord.channelId`: target channel ID
    - `discord.allowedMentions`: array of mention types (`roles`, `users`, `everyone`) to allow in Discord messages; defaults to an empty array to suppress mentions
