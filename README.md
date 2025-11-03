@@ -11,6 +11,7 @@
 - Relays join, leave, death, and chat events to Discord with presence updates
 - Forwards Discord channel messages back into Cubyz, keeping role colors in-game
 - Supports Discord message replies with context and emoji reactions relayed back to the server
+- Provides a `/list` Discord command to show the players currently online
 - Cleans Cubyz markdown-style usernames and censors configurable words
 - Automatic reconnection with exponential backoff and retry limits
 - Optional integration advertises your server on [cubyzlist.site](https://cubyzlist.site)

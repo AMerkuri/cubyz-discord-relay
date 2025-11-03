@@ -1,12 +1,15 @@
 import type { Gamemode } from "cubyz-node-client";
 import type {
+  ApplicationCommand,
   Client,
+  Interaction,
   Message,
   MessageReaction,
   PartialMessageReaction,
   PartialUser,
   User,
 } from "discord.js";
+import { Events, MessageFlags } from "discord.js";
 import type { BotConnectionManager } from "../botConnection.js";
 import {
   cleanup as cleanupDiscordClient,
@@ -32,6 +35,8 @@ interface CachedMessage {
 
 const MESSAGE_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const DEFAULT_CUBYZ_COLOR_RESET = "#FFFFFF";
+const DISCORD_MESSAGE_LIMIT = 2000;
+const MAX_PLAYER_LIST_ENTRIES = 50;
 
 const collapseWhitespace = (input: string): string =>
   input.replace(/\s+/g, " ").trim();
@@ -45,6 +50,7 @@ export class DiscordIntegration implements BaseIntegration {
   private client: Client<boolean> | null = null;
   private bot: BotConnectionManager | null = null;
   private isReady = false;
+  private currentPlayers: string[] = [];
   private readonly logger: Logger;
 
   constructor(config: Config) {
@@ -77,6 +83,15 @@ export class DiscordIntegration implements BaseIntegration {
 
     client.on("messageCreate", this.handleMessageCreate);
     client.on("messageReactionAdd", this.handleReactionAdd);
+    client.on("interactionCreate", this.handleInteractionCreate);
+
+    if (client.isReady()) {
+      await this.registerSlashCommands();
+    } else {
+      client.once(Events.ClientReady, () => {
+        void this.registerSlashCommands();
+      });
+    }
 
     this.isReady = true;
     await this.sendMessage("**🤖 Bot has joined chat**");
@@ -95,6 +110,7 @@ export class DiscordIntegration implements BaseIntegration {
     if (client) {
       client.off("messageCreate", this.handleMessageCreate);
       client.off("messageReactionAdd", this.handleReactionAdd);
+      client.off("interactionCreate", this.handleInteractionCreate);
     }
 
     this.messageCache.clear();
@@ -103,6 +119,8 @@ export class DiscordIntegration implements BaseIntegration {
   }
 
   async updatePlayers(players: readonly string[]): Promise<void> {
+    this.currentPlayers = [...players];
+
     if (!this.isActive()) {
       return;
     }
@@ -224,6 +242,13 @@ export class DiscordIntegration implements BaseIntegration {
       return;
     }
 
+    if (normalizedContent.startsWith("/")) {
+      const handled = await this.handleCommand(normalizedContent, message);
+      if (handled) {
+        return;
+      }
+    }
+
     if (!this.bot) {
       this.log(
         "warn",
@@ -256,6 +281,151 @@ export class DiscordIntegration implements BaseIntegration {
       await this.bot.sendChat(payload);
     } catch (error) {
       this.log("error", "Failed to relay Discord message to Cubyz:", error);
+    }
+  };
+
+  private async registerSlashCommands(): Promise<void> {
+    if (!this.client) {
+      return;
+    }
+
+    try {
+      const channel = await this.client.channels.fetch(
+        this.config.discord.channelId,
+      );
+      if (!channel || !channel.isTextBased()) {
+        this.log(
+          "warn",
+          "Cannot register slash command: configured channel is not text-based.",
+        );
+        return;
+      }
+
+      if (!("guild" in channel) || !channel.guild) {
+        this.log(
+          "warn",
+          "Cannot register slash command: configured channel is not in a guild.",
+        );
+        return;
+      }
+
+      const guild = channel.guild;
+
+      const commandDefinition = {
+        name: "list",
+        description: "Show the players currently online in Cubyz.",
+      } as const;
+
+      const existingCommands = await guild.commands.fetch();
+      const existing = existingCommands.find(
+        (command: ApplicationCommand) =>
+          command.name === commandDefinition.name,
+      );
+
+      if (!existing) {
+        await guild.commands.create(commandDefinition);
+        this.log("info", "Registered /list slash command.");
+      } else if (existing.description !== commandDefinition.description) {
+        await guild.commands.edit(existing.id, commandDefinition);
+        this.log("info", "Updated /list slash command.");
+      }
+    } catch (error) {
+      this.log("error", "Failed to register slash command:", error);
+    }
+  }
+
+  private async handleCommand(
+    content: string,
+    message: Message,
+  ): Promise<boolean> {
+    const [command] = content.split(/\s+/, 1);
+    if (command.toLowerCase() === "/list") {
+      await this.handleListCommand(message);
+      return true;
+    }
+
+    return false;
+  }
+
+  private async handleListCommand(message: Message): Promise<void> {
+    const response = this.formatPlayerListResponse(this.currentPlayers);
+
+    try {
+      await message.reply({
+        content: response,
+        allowedMentions: { repliedUser: false },
+      });
+    } catch (error) {
+      this.log("error", "Failed to respond to /list command:", error);
+    }
+  }
+
+  private formatPlayerListResponse(players: readonly string[]): string {
+    if (players.length === 0) {
+      return "No players are currently connected";
+    }
+
+    const displayedPlayers = players.slice(0, MAX_PLAYER_LIST_ENTRIES);
+    let response = `Players online (${players.length}): ${displayedPlayers.join(", ")}`;
+
+    if (players.length > displayedPlayers.length) {
+      response = `${response}, ...and ${players.length - displayedPlayers.length} more`;
+    }
+
+    if (response.length <= DISCORD_MESSAGE_LIMIT) {
+      return response;
+    }
+
+    const numberedLines = displayedPlayers.map(
+      (player, index) => `${index + 1}. ${player}`,
+    );
+    const lines = [`Players online (${players.length}):`, ...numberedLines];
+    response = lines.join("\n");
+
+    if (players.length > displayedPlayers.length) {
+      response = `${response}\n...and ${players.length - displayedPlayers.length} more`;
+    }
+
+    if (response.length <= DISCORD_MESSAGE_LIMIT) {
+      return response;
+    }
+
+    return "Player list is too long to display";
+  }
+
+  private readonly handleInteractionCreate = async (
+    interaction: Interaction,
+  ): Promise<void> => {
+    if (!interaction.isChatInputCommand()) {
+      return;
+    }
+
+    if (interaction.commandName !== "list") {
+      return;
+    }
+
+    const response = this.formatPlayerListResponse(this.currentPlayers);
+
+    try {
+      await interaction.reply({
+        content: response,
+      });
+    } catch (error) {
+      if (!interaction.deferred && !interaction.replied) {
+        try {
+          await interaction.reply({
+            content: "Unable to display player list right now",
+            flags: MessageFlags.Ephemeral,
+          });
+        } catch (innerError) {
+          this.log(
+            "error",
+            "Failed to send fallback response for /list command:",
+            innerError,
+          );
+        }
+      }
+      this.log("error", "Failed to respond to /list slash command:", error);
     }
   };
 
