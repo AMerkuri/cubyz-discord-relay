@@ -108,3 +108,10 @@ During execution press `q` or `Ctrl+C` to exit gracefully.
 ## Limitations
 
 - **Requires player slot**: The relay consumes one in-game player slot while connected.
+
+## Compatibility## Compatibility
+
+| cubyz-discord-relay version | Required Cubyz version |
+| --------------------------- | ---------------------- |
+| 2.5.0+                      | 0.2.0+                 |
+| 1.0.0 - 2.4.0               | 0.0.0+                 |
