@@ -21,8 +21,10 @@ export interface CubyzListSiteConfig {
   enabled: boolean;
   serverName: string;
   serverIp: string;
-  serverPort: number;
+  description?: string;
+  serverPort?: number;
   iconUrl?: string;
+  discordServer?: string;
   customClientDownloadUrl?: string;
 }
 

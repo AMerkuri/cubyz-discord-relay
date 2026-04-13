@@ -31,7 +31,9 @@
       "serverName": "My Cubyz Server",
       "serverIp": "play.yourserver.com",
       "serverPort": 47649,
+      "description": "A friendly public survival server",
       "iconUrl": "https://github.com/PixelGuys/Cubyz/blob/master/assets/cubyz/logo.png?raw=true",
+      "discordServer": "https://discord.gg/your-server",
       "customClientDownloadUrl": "https://github.com/PixelGuys/Cubyz/releases/tag/0.0.0"
     }
   }
