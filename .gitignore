@@ -4,5 +4,4 @@ config.json
 .env
 *.log
 *.tsbuildinfo
-.github
 cubyz-identity.txt
