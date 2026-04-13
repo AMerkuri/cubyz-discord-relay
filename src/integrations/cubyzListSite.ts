@@ -14,7 +14,7 @@ import type { BaseIntegration, IntegrationStatusContext } from "./base.js";
  * Integration that sends server status updates to the Cubyz list site
  * via TCP socket connection to api.ashframe.net:5001.
  * Sends periodic updates every 5 minutes to keep the listing fresh.
- * @link https://cubyzlist.site
+ * @link https://servers.ashframe.net
  */
 export class CubyzListSiteIntegration implements BaseIntegration {
   readonly name = "CubyzListSite";
@@ -27,10 +27,12 @@ export class CubyzListSiteIntegration implements BaseIntegration {
   private readonly UPDATE_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
   private isReady = false;
   private readonly config: CubyzListSiteConfig;
+  private readonly version: string;
   private readonly logger: Logger;
 
   constructor(config: Config) {
     this.config = config.integration.cubyzlistSite;
+    this.version = config.cubyz.version;
     this.logger = createLogger(config.logLevel);
   }
 
@@ -120,15 +122,26 @@ export class CubyzListSiteIntegration implements BaseIntegration {
     const payload = {
       server_id: this.config.serverName,
       player_count: this.currentPlayers.size,
+      player_list: Array.from(this.currentPlayers),
       status: this.currentStatus,
-      gamemode: this.gamemode,
-      ip:
-        this.config.serverIp +
-        (this.config.serverPort ? `:${this.config.serverPort}` : ""),
-      icon: this.config.iconUrl ?? "",
-      client_download: this.config.customClientDownloadUrl ?? "",
-      script_version: "1.4",
+      ip: this.config.serverIp,
+      version: this.version,
+      api_version: "1",
       timestamp: Math.floor(Date.now() / 1000),
+      ...(this.config.serverPort != null
+        ? { port: this.config.serverPort }
+        : {}),
+      ...(this.gamemode != null ? { gamemode: this.gamemode } : {}),
+      ...(this.config.description != null
+        ? { description: this.config.description }
+        : {}),
+      ...(this.config.iconUrl != null ? { icon: this.config.iconUrl } : {}),
+      ...(this.config.discordServer != null
+        ? { discord_server: this.config.discordServer }
+        : {}),
+      ...(this.config.customClientDownloadUrl != null
+        ? { client_download: this.config.customClientDownloadUrl }
+        : {}),
     };
 
     const dataString = JSON.stringify(payload);

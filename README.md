@@ -14,7 +14,7 @@
 - Provides a `/list` Discord command to show the players currently online
 - Cleans Cubyz markdown-style usernames and censors configurable words
 - Automatic reconnection with exponential backoff and retry limits
-- Optional integration advertises your server on [cubyzlist.site](https://cubyzlist.site)
+- Optional integration advertises your server on [servers.ashframe.net](https://servers.ashframe.net)
 
 ## Prerequisites
 
@@ -79,14 +79,19 @@ npm install
    - `connection.reconnect`: enable/disable automatic reconnect attempts
    - `connection.maxRetries`: maximum reconnect attempts (`0` = infinite)
    - `connection.retryDelayMs`: initial delay before retrying (milliseconds)
-   - `integration.cubyzlistSite.enabled`: toggle advertising to the community server list
-   - `integration.cubyzlistSite.serverName`: required display name shown on cubyzlist.site, must be unique
-   - `integration.cubyzlistSite.serverIp`: public hostname or IP that players should connect to
-   - `integration.cubyzlistSite.serverPort`: public port exposed for players (defaults to `47649` if omitted)
-   - `integration.cubyzlistSite.iconUrl`: optional URL for the list thumbnail
-   - `integration.cubyzlistSite.customClientDownloadUrl`: optional link to a custom client build
 
 > First run convenience: if `config.json` is missing, the application writes a fresh template in your working directory and exits so you can fill it in before retrying.
+
+### CubyzListSite Integration
+
+- `integration.cubyzlistSite.enabled`: toggle advertising to the community server list
+- `integration.cubyzlistSite.serverName`: required display name shown on servers.ashframe.net, must be unique; if missing while enabled, the integration logs a warning and stays disabled
+- `integration.cubyzlistSite.serverIp`: required public hostname or IP that players should connect to; if missing while enabled, the integration logs a warning and stays disabled
+- `integration.cubyzlistSite.description`: optional short description shown on servers.ashframe.net
+- `integration.cubyzlistSite.serverPort`: optional public port exposed for players
+- `integration.cubyzlistSite.iconUrl`: optional URL for the list thumbnail
+- `integration.cubyzlistSite.discordServer`: optional Discord invite or server URL
+- `integration.cubyzlistSite.customClientDownloadUrl`: optional link to a custom client build
 
 ### Usage
 

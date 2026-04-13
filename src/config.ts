@@ -2,6 +2,7 @@ import { access, copyFile, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { createLogger } from "./logger.js";
 import type {
   AllowedMentionType,
   Config,
@@ -43,8 +44,10 @@ const DEFAULT_CUBYZLIST_SITE: CubyzListSiteConfig = {
   enabled: false,
   serverName: "",
   serverIp: "",
-  serverPort: 47649,
+  description: undefined,
+  serverPort: undefined,
   iconUrl: undefined,
+  discordServer: undefined,
   customClientDownloadUrl: undefined,
 };
 const CONFIG_TEMPLATE_PATH = fileURLToPath(
@@ -89,6 +92,23 @@ function coercePort(value: unknown, fallback: number): number {
     return value;
   }
   return fallback;
+}
+
+function coerceOptionalPort(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  if (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value > 0 &&
+    value <= 65535
+  ) {
+    return value;
+  }
+
+  return undefined;
 }
 
 function coerceString(value: unknown, fallback: string): string {
@@ -174,14 +194,23 @@ function applyDefaults(partial: Partial<Config>): Config {
       partial.integration?.cubyzlistSite?.serverIp,
       DEFAULT_CUBYZLIST_SITE.serverIp,
     ),
-    serverPort: coercePort(
+    description:
+      coerceString(
+        partial.integration?.cubyzlistSite?.description,
+        DEFAULT_CUBYZLIST_SITE.description ?? "",
+      ) || undefined,
+    serverPort: coerceOptionalPort(
       partial.integration?.cubyzlistSite?.serverPort,
-      DEFAULT_CUBYZLIST_SITE.serverPort,
     ),
     iconUrl:
       coerceString(
         partial.integration?.cubyzlistSite?.iconUrl,
         DEFAULT_CUBYZLIST_SITE.iconUrl ?? "",
+      ) || undefined,
+    discordServer:
+      coerceString(
+        partial.integration?.cubyzlistSite?.discordServer,
+        DEFAULT_CUBYZLIST_SITE.discordServer ?? "",
       ) || undefined,
     customClientDownloadUrl:
       coerceString(
@@ -241,6 +270,32 @@ function applyDefaults(partial: Partial<Config>): Config {
     excludedUsernames,
     integration,
   };
+}
+
+function finalizeConfig(config: Config): Config {
+  const cubyzlist = config.integration.cubyzlistSite;
+  if (!cubyzlist.enabled) {
+    return config;
+  }
+
+  const missingFields: string[] = [];
+  if (cubyzlist.serverName.length === 0) {
+    missingFields.push("integration.cubyzlistSite.serverName");
+  }
+  if (cubyzlist.serverIp.length === 0) {
+    missingFields.push("integration.cubyzlistSite.serverIp");
+  }
+
+  if (missingFields.length === 0) {
+    return config;
+  }
+
+  createLogger(config.logLevel)(
+    "warn",
+    `[CubyzListSite] Disabled integration because required config field(s) are missing: ${missingFields.join(", ")}`,
+  );
+  cubyzlist.enabled = false;
+  return config;
 }
 
 async function ensureConfigFile(resolvedPath: string): Promise<void> {
@@ -461,31 +516,37 @@ export function validateConfig(config: Config): void {
     );
   }
 
-  // Only validate required fields if enabled
+  if (typeof cubyzlist.serverName !== "string") {
+    throw new Error(
+      'Configuration error: "integration.cubyzlistSite.serverName" must be a string.',
+    );
+  }
+
+  if (typeof cubyzlist.serverIp !== "string") {
+    throw new Error(
+      'Configuration error: "integration.cubyzlistSite.serverIp" must be a string.',
+    );
+  }
+
+  if (
+    cubyzlist.description !== undefined &&
+    (typeof cubyzlist.description !== "string" || cubyzlist.description === "")
+  ) {
+    throw new Error(
+      'Configuration error: "integration.cubyzlistSite.description" must be a non-empty string or undefined.',
+    );
+  }
+
   if (cubyzlist.enabled) {
     if (
-      typeof cubyzlist.serverName !== "string" ||
-      cubyzlist.serverName === ""
+      cubyzlist.serverPort !== undefined &&
+      (typeof cubyzlist.serverPort !== "number" ||
+        !Number.isInteger(cubyzlist.serverPort) ||
+        cubyzlist.serverPort <= 0 ||
+        cubyzlist.serverPort > 65535)
     ) {
       throw new Error(
-        'Configuration error: "integration.cubyzlistSite.serverName" must be a non-empty string when enabled.',
-      );
-    }
-
-    if (typeof cubyzlist.serverIp !== "string" || cubyzlist.serverIp === "") {
-      throw new Error(
-        'Configuration error: "integration.cubyzlistSite.serverIp" must be a non-empty string when enabled.',
-      );
-    }
-
-    if (
-      typeof cubyzlist.serverPort !== "number" ||
-      !Number.isInteger(cubyzlist.serverPort) ||
-      cubyzlist.serverPort <= 0 ||
-      cubyzlist.serverPort > 65535
-    ) {
-      throw new Error(
-        'Configuration error: "integration.cubyzlistSite.serverPort" must be an integer between 1 and 65535.',
+        'Configuration error: "integration.cubyzlistSite.serverPort" must be an integer between 1 and 65535 or undefined.',
       );
     }
 
@@ -495,6 +556,16 @@ export function validateConfig(config: Config): void {
     ) {
       throw new Error(
         'Configuration error: "integration.cubyzlistSite.iconUrl" must be a non-empty string or undefined.',
+      );
+    }
+
+    if (
+      cubyzlist.discordServer !== undefined &&
+      (typeof cubyzlist.discordServer !== "string" ||
+        cubyzlist.discordServer === "")
+    ) {
+      throw new Error(
+        'Configuration error: "integration.cubyzlistSite.discordServer" must be a non-empty string or undefined.',
       );
     }
 
@@ -520,7 +591,9 @@ export async function loadConfig(configPath: string): Promise<Config> {
       "Configuration error: detected legacy log-based settings. Update the configuration file to use the bot connection schema.",
     );
   }
-  const config = applyDefaults(parsedUnknown as Partial<Config>);
+  const config = finalizeConfig(
+    applyDefaults(parsedUnknown as Partial<Config>),
+  );
   validateConfig(config);
   return config;
 }
