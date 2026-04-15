@@ -119,4 +119,4 @@ During execution press `q` or `Ctrl+C` to exit gracefully.
 | cubyz-discord-relay version | Required Cubyz version |
 | --------------------------- | ---------------------- |
 | 2.5.0+                      | 0.2.0+                 |
-| 1.0.0 - 2.4.2               | 0.0.0+                 |
+| 2.4.3                       | 0.0.0+                 |
