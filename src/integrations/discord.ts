@@ -55,7 +55,9 @@ export class DiscordIntegration implements BaseIntegration {
 
   constructor(config: Config) {
     this.config = config;
-    this.botNormalizedName = cleanUsername(config.cubyz.botName).toLowerCase();
+    this.botNormalizedName = cleanUsername(
+      config.cubyz.botName ?? "",
+    ).toLowerCase();
     this.logger = createLogger(config.logLevel);
   }
 

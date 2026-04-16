@@ -151,7 +151,7 @@ function applyDefaults(partial: Partial<Config>): Config {
   const cubyz: CubyzConnectionConfig = {
     host: coerceString(partial.cubyz?.host, DEFAULT_CUBYZ.host),
     port: coercePort(partial.cubyz?.port, DEFAULT_CUBYZ.port),
-    botName: coerceString(partial.cubyz?.botName, DEFAULT_CUBYZ.botName),
+    botName: partial.cubyz?.botName?.trim() || undefined,
     version: coerceString(partial.cubyz?.version, DEFAULT_CUBYZ.version),
   };
 
@@ -334,15 +334,6 @@ export function validateConfig(config: Config): void {
   ) {
     throw new Error(
       'Configuration error: "cubyz.port" must be an integer between 1 and 65535.',
-    );
-  }
-
-  if (
-    typeof config.cubyz.botName !== "string" ||
-    config.cubyz.botName.trim().length === 0
-  ) {
-    throw new Error(
-      'Configuration error: "cubyz.botName" must be a non-empty string.',
     );
   }
 

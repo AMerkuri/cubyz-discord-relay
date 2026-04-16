@@ -69,7 +69,7 @@ export class BotConnectionManager extends EventEmitter {
   ) {
     super();
     this.botNormalizedName = toNormalized(
-      cleanUsername(this.connectionConfig.botName),
+      cleanUsername(this.connectionConfig.botName ?? ""),
     );
     this.excludedNormalizedNames = new Set(
       excludedUsernames.map((name) => toNormalized(cleanUsername(name))),
@@ -159,7 +159,7 @@ export class BotConnectionManager extends EventEmitter {
     const options: CubyzConnectionOptions = {
       host: this.connectionConfig.host,
       port: this.connectionConfig.port,
-      name: this.connectionConfig.botName,
+      name: this.connectionConfig.botName ?? "",
       version: this.connectionConfig.version,
       logLevel: this.logLevel,
     };

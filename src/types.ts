@@ -7,7 +7,7 @@ export type LogLevel = "error" | "debug" | "info" | "warn" | "silent";
 export interface CubyzConnectionConfig {
   host: string;
   port: number;
-  botName: string;
+  botName?: string;
   version: string;
 }
 
